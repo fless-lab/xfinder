@@ -1,5 +1,10 @@
 // src/search/tantivy_index.rs
-// Indexation et recherche avec Tantivy
+// Module gérant l'indexation et la recherche avec Tantivy
+//
+// Ce module encapsule toute la logique d'interaction avec Tantivy:
+// - Création et ouverture de l'index
+// - Ajout de documents (fichiers) à l'index
+// - Recherche dans l'index avec scoring
 
 use anyhow::{Context, Result};
 use std::path::Path;
@@ -18,18 +23,30 @@ pub struct SearchIndex {
 }
 
 impl SearchIndex {
-    /// Créer un nouvel index Tantivy
+    // Initialise un nouvel index Tantivy ou ouvre un index existant
+    //
+    // L'index sera créé dans le dossier spécifié. Si un index existe déjà
+    // à cet emplacement, il sera ouvert pour être réutilisé.
+    //
+    // Le schéma initial contient deux champs:
+    // - path: chemin complet du fichier (TEXT | STORED)
+    // - filename: nom du fichier uniquement (TEXT | STORED)
     pub fn new(index_dir: &Path) -> Result<Self> {
-        // Schéma de base : chemin + nom fichier
+        // Commençons par définir le schéma de l'index
+        // Un schéma définit la structure des documents qu'on va indexer
         let mut schema_builder = Schema::builder();
         let path_field = schema_builder.add_text_field("path", TEXT | STORED);
         let filename_field = schema_builder.add_text_field("filename", TEXT | STORED);
         let schema = schema_builder.build();
 
-        // Créer ou ouvrir l'index
+        // Assurons-nous que le dossier d'index existe
+        // Si le dossier n'existe pas, on le crée
         std::fs::create_dir_all(index_dir)
             .context("Impossible de créer le dossier d'index")?;
 
+        // Tentons de créer un nouvel index
+        // Si un index existe déjà (erreur AlreadyExists), on l'ouvre
+        // Cette approche permet de gérer à la fois les créations et réouvertures
         let index = Index::create_in_dir(index_dir, schema.clone())
             .or_else(|_| Index::open_in_dir(index_dir))
             .context("Impossible de créer/ouvrir l'index Tantivy")?;
@@ -42,7 +59,16 @@ impl SearchIndex {
         })
     }
 
-    /// Ajouter un fichier à l'index
+    // Ajoute un fichier à l'index via le writer fourni
+    //
+    // Cette méthode crée un document Tantivy avec les informations du fichier
+    // et l'ajoute au writer. Le document ne sera persisté qu'après un commit()
+    // sur le writer.
+    //
+    // Paramètres:
+    // - writer: Le IndexWriter actif pour cette session d'indexation
+    // - path: Chemin complet du fichier (ex: C:\Users\...\document.pdf)
+    // - filename: Nom du fichier uniquement (ex: document.pdf)
     pub fn add_file(&self, writer: &mut IndexWriter, path: &str, filename: &str) -> Result<()> {
         let doc = doc!(
             self.path_field => path,
@@ -52,7 +78,10 @@ impl SearchIndex {
         Ok(())
     }
 
-    /// Créer un writer pour indexation
+    // Crée un IndexWriter pour commencer une session d'indexation
+    //
+    // Le writer alloue 50MB de RAM pour le buffer d'indexation.
+    // N'oublie pas d'appeler writer.commit() pour persister les changements!
     pub fn create_writer(&self) -> Result<IndexWriter> {
         let writer = self
             .index
@@ -61,8 +90,19 @@ impl SearchIndex {
         Ok(writer)
     }
 
-    /// Rechercher dans l'index
+    // Recherche des fichiers dans l'index en fonction d'une requête textuelle
+    //
+    // Cette méthode:
+    // 1. Parse la requête utilisateur (ex: "document pdf")
+    // 2. Exécute la recherche sur le champ filename
+    // 3. Retourne les meilleurs résultats avec leurs scores
+    //
+    // Paramètres:
+    // - query_str: Texte de recherche saisi par l'utilisateur
+    // - limit: Nombre maximum de résultats à retourner
     pub fn search(&self, query_str: &str, limit: usize) -> Result<Vec<SearchResult>> {
+        // Ouvre un reader sur l'index
+        // Le reader permet de rechercher dans l'index de manière thread-safe
         let reader = self
             .index
             .reader()
@@ -70,18 +110,20 @@ impl SearchIndex {
 
         let searcher = reader.searcher();
 
-        // Parser la requête sur le champ filename
+        // Configure le parser de requête pour chercher dans le champ filename
+        // Tantivy supporte les requêtes complexes (AND, OR, phrases, etc.)
         let query_parser = QueryParser::for_index(&self.index, vec![self.filename_field]);
         let query = query_parser
             .parse_query(query_str)
             .context("Impossible de parser la requête")?;
 
-        // Chercher les top résultats
+        // Lance la recherche et récupère les N meilleurs documents
+        // TopDocs collecte les résultats triés par score de pertinence
         let top_docs = searcher
             .search(&query, &TopDocs::with_limit(limit))
             .context("Erreur lors de la recherche")?;
 
-        // Convertir en SearchResult
+        // Convertissons les résultats Tantivy en notre structure SearchResult
         let mut results = Vec::new();
         for (score, doc_address) in top_docs {
             let retrieved_doc: TantivyDocument = searcher.doc(doc_address)?;
