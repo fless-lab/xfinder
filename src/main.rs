@@ -1,8 +1,10 @@
 // src/main.rs
 // xfinder - Recherche intelligente Windows
-// Phase 0 : Hello World egui
+// Phase 1 : Intégration Tantivy
 
 use eframe::egui;
+
+mod search;
 
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {

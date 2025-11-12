@@ -2,11 +2,11 @@
 // Indexation et recherche avec Tantivy
 
 use anyhow::{Context, Result};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tantivy::collector::TopDocs;
 use tantivy::query::QueryParser;
 use tantivy::schema::*;
-use tantivy::{doc, Index, IndexWriter, ReloadPolicy};
+use tantivy::{doc, Index, IndexWriter, TantivyDocument};
 
 use super::SearchResult;
 
@@ -65,9 +65,7 @@ impl SearchIndex {
     pub fn search(&self, query_str: &str, limit: usize) -> Result<Vec<SearchResult>> {
         let reader = self
             .index
-            .reader_builder()
-            .reload_policy(ReloadPolicy::OnCommit)
-            .try_into()
+            .reader()
             .context("Impossible de créer le reader")?;
 
         let searcher = reader.searcher();
@@ -86,7 +84,7 @@ impl SearchIndex {
         // Convertir en SearchResult
         let mut results = Vec::new();
         for (score, doc_address) in top_docs {
-            let retrieved_doc = searcher.doc(doc_address)?;
+            let retrieved_doc: TantivyDocument = searcher.doc(doc_address)?;
             let path = retrieved_doc
                 .get_first(self.path_field)
                 .and_then(|v| v.as_str())
@@ -109,20 +107,21 @@ impl SearchIndex {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
-    use tempfile::TempDir;
 
     #[test]
     fn test_index_creation() {
-        let temp_dir = TempDir::new().unwrap();
-        let index = SearchIndex::new(temp_dir.path());
+        let temp_dir = std::env::temp_dir().join("xfinder_test_index_1");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        let index = SearchIndex::new(&temp_dir);
         assert!(index.is_ok());
+        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
     #[test]
     fn test_add_and_search_file() {
-        let temp_dir = TempDir::new().unwrap();
-        let index = SearchIndex::new(temp_dir.path()).unwrap();
+        let temp_dir = std::env::temp_dir().join("xfinder_test_index_2");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        let index = SearchIndex::new(&temp_dir).unwrap();
 
         // Ajouter des fichiers test
         let mut writer = index.create_writer().unwrap();
@@ -145,14 +144,19 @@ mod tests {
         let filenames: Vec<String> = results.iter().map(|r| r.filename.clone()).collect();
         assert!(filenames.contains(&"readme.txt".to_string()));
         assert!(filenames.contains(&"notes.txt".to_string()));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
     #[test]
     fn test_search_empty_query() {
-        let temp_dir = TempDir::new().unwrap();
-        let index = SearchIndex::new(temp_dir.path()).unwrap();
+        let temp_dir = std::env::temp_dir().join("xfinder_test_index_3");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        let index = SearchIndex::new(&temp_dir).unwrap();
 
         let results = index.search("nonexistent_file_xyz", 10).unwrap();
         assert_eq!(results.len(), 0);
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 }

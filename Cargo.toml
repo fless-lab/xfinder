@@ -20,6 +20,9 @@ walkdir = "2.4"
 # === Utils ===
 anyhow = "1.0"
 
+[dev-dependencies]
+tempfile = "3.8"
+
 [profile.release]
 opt-level = 3
 lto = true
