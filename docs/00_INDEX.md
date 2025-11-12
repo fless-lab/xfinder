@@ -6,219 +6,134 @@
 
 ## Navigation rapide
 
-| Document | Contenu | Audience | Pages |
-|----------|---------|----------|-------|
-| **[README.md](../README.md)** | Vue d'ensemble projet | Tous | 4 |
-| **[01_PRD](01_PRD_Product_Requirements.md)** | Spécifications produit | PM, Dev, Sponsors | 35 |
-| **[02_Architecture](02_Architecture_Technique.md)** | Architecture technique | Dev, Tech Lead | 45 |
-| **[03_Decisions](03_Decisions_Techniques.md)** | Choix techniques | Dev, Architects | 30 |
-| **[04_API](04_API_Schemas.md)** | API & schémas données | Dev Frontend/Backend | 40 |
-| **[05_Tests](05_Plan_Tests_Metriques.md)** | Tests & métriques | QA, Dev | 25 |
+| Document | Contenu | Audience | Statut |
+|----------|---------|----------|--------|
+| **[README.md](../README.md)** | Vue d'ensemble projet | Tous | ✅ À jour |
+| **[QUICKSTART.md](../QUICKSTART.md)** | Démarrage rapide développeur | Dev | ✅ À jour |
+| **[GIT_WORKFLOW.md](../GIT_WORKFLOW.md)** | Guide Git commit réguliers | Dev | ✅ À jour |
+| **[01_PRD](01_PRD_Product_Requirements.md)** | Spécifications produit | PM, Dev, Sponsors | ✅ À jour |
+| **[03_Decisions](03_Decisions_Techniques.md)** | Choix techniques | Dev, Architects | ⚠️ Voir note |
+| **[05_Tests](05_Plan_Tests_Metriques.md)** | Tests & métriques | QA, Dev | ✅ À jour |
+| **[06_Backlog](06_Backlog_Complet.md)** | 325 tâches détaillées | PM, Dev | ⚠️ Voir note |
+| **[07_Securite](07_Architecture_Securite.md)** | Modèle menaces & sécurité | Dev, Security | ✅ À jour |
+| **[08_Architecture_egui](08_Architecture_Finale_egui.md)** | **Architecture FINALE** | Dev | ✅ **RÉFÉRENCE** |
 
-**Total :** ~180 pages de documentation
+**Total documentation active : ~200 pages**
+
+---
+
+## ⚠️ Note importante
+
+### Architecture finale : **egui** (pas Tauri)
+
+**Décision :** Application native Rust pure avec egui (comme spotlight_windows)
+
+**Documents obsolètes (archive uniquement) :**
+- ~~02_Architecture_Technique.md~~ (version Tauri)
+- ~~04_API_Schemas.md~~ (Tauri IPC - pas applicable egui)
+
+**→ Référence actuelle : `08_Architecture_Finale_egui.md`**
 
 ---
 
 ## Par rôle
 
-### Product Manager / Sponsors
-**À lire en priorité :**
-1. [README.md](../README.md) - Vision globale
-2. [01_PRD](01_PRD_Product_Requirements.md) - Features détaillées
-   - Executive Summary
-   - Problèmes utilisateurs
-   - Roadmap
-   - Personas
-   - Métriques succès
+### Développeur (toi)
 
-**Optionnel :**
-- [03_Decisions](03_Decisions_Techniques.md) - Comprendre choix stack
-
----
-
-### Développeur Backend (Rust)
-**À lire en priorité :**
-1. [02_Architecture](02_Architecture_Technique.md) - Architecture complète
-   - Modules Rust
-   - Watchdog
-   - Indexer
-   - Content Extractor (OCR)
-   - AI Engine (LEANN)
-   - Email Parser
-2. [04_API](04_API_Schemas.md) - Schémas DB + Tauri commands
-3. [05_Tests](05_Plan_Tests_Metriques.md) - Tests unitaires + benchmarks
+**Commence par :**
+1. [QUICKSTART.md](../QUICKSTART.md) - Démarrage zéro
+2. [08_Architecture_egui](08_Architecture_Finale_egui.md) - Structure code
+3. [GIT_WORKFLOW.md](../GIT_WORKFLOW.md) - Commit réguliers
 
 **Référence :**
-- [03_Decisions](03_Decisions_Techniques.md) - Pourquoi Tauri, Tesseract, etc.
-
----
-
-### Développeur Frontend (React)
-**À lire en priorité :**
-1. [04_API](04_API_Schemas.md) - Tauri IPC + Types TypeScript
-   - Search API
-   - Config API
-   - Events
-2. [02_Architecture](02_Architecture_Technique.md) - Structure frontend
-3. [05_Tests](05_Plan_Tests_Metriques.md) - Tests composants
-
-**Référence :**
-- [01_PRD](01_PRD_Product_Requirements.md) - Mockups interface
-
----
-
-### QA / Testeur
-**À lire en priorité :**
-1. [05_Tests](05_Plan_Tests_Metriques.md) - Plan complet
-   - Tests E2E
-   - Tests performance
-   - Tests utilisateurs
-   - Benchmarks
-2. [01_PRD](01_PRD_Product_Requirements.md) - Features à valider
-
----
-
-### DevOps / IT
-**À lire en priorité :**
-1. [02_Architecture](02_Architecture_Technique.md)
-   - Déploiement
-   - Configuration
-2. [03_Decisions](03_Decisions_Techniques.md) - MSI vs MSIX
-3. [01_PRD](01_PRD_Product_Requirements.md) - Contraintes système
+- [01_PRD](01_PRD_Product_Requirements.md) - Features à implémenter
+- [06_Backlog](06_Backlog_Complet.md) - Tâches détaillées
+- [07_Securite](07_Architecture_Securite.md) - Best practices sécurité
 
 ---
 
 ## Par phase projet
 
-### Phase 0 : Documentation ✅ (Actuelle)
-**Docs créés :**
-- ✅ README.md
-- ✅ 01_PRD_Product_Requirements.md
-- ✅ 02_Architecture_Technique.md
-- ✅ 03_Decisions_Techniques.md
-- ✅ 04_API_Schemas.md
-- ✅ 05_Plan_Tests_Metriques.md
+### Phase actuelle : Setup (Semaine 1)
 
-**Prochaine étape :** POC LEANN (semaine 3)
+**Docs à lire :**
+- ✅ [QUICKSTART.md](../QUICKSTART.md)
+- ✅ [08_Architecture_egui](08_Architecture_Finale_egui.md)
+- ✅ [GIT_WORKFLOW.md](../GIT_WORKFLOW.md)
 
----
+**Action :**
+```bash
+# 1. Hello World egui
+cargo run
 
-### Phase 1 : MVP Indexation (Semaines 3-8)
-**Docs à consulter :**
-- 02_Architecture - Modules Watchdog, Indexer
-- 04_API - Schéma DB files
-- 05_Tests - Tests unitaires indexation
-
-**Docs à créer :**
-- [ ] CONTRIBUTING.md - Guide contribution
-- [ ] SETUP.md - Setup environnement dev
+# 2. Commit
+git add .
+git commit -m "feat: hello world egui fonctionne"
+```
 
 ---
 
-### Phase 2 : OCR (Semaines 9-12)
-**Docs à consulter :**
-- 02_Architecture - Module Content Extractor
-- 03_Decisions - Choix Tesseract
-- 05_Tests - Benchmarks OCR
+### Phase 1 : MVP (Semaines 1-4)
 
-**Docs à créer :**
-- [ ] OCR_GUIDE.md - Guide configuration OCR
+**Focus :** Recherche basique Tantivy + egui
 
----
-
-### Phase 3 : IA Assist Me (Semaines 13-17)
-**Docs à consulter :**
-- 02_Architecture - Module AI Engine
-- 03_Decisions - LEANN vs FAISS
-- 04_API - AssistMe API
-
-**Docs à créer :**
-- [ ] LEANN_POC.md - Résultats POC
-- [ ] AI_TUNING.md - Guide tuning modèle
+**Docs utiles :**
+- [08_Architecture_egui](08_Architecture_Finale_egui.md) - Modules search/
+- [06_Backlog](06_Backlog_Complet.md) - Tâches Semaine 1-4
 
 ---
 
-### Phase 4 : Emails (Semaines 18-22)
-**Docs à consulter :**
-- 02_Architecture - Module Email Parser
-- 03_Decisions - PST strategy
-- 04_API - Email schemas
+### Phases 2-5 : Features avancées
 
-**Docs à créer :**
-- [ ] EMAIL_SUPPORT.md - Formats supportés
+**Référence :**
+- [01_PRD](01_PRD_Product_Requirements.md) - Specs complètes
+- [06_Backlog](06_Backlog_Complet.md) - Roadmap 25 semaines
 
 ---
 
-### Phase 5 : Production (Semaines 23-25)
-**Docs à créer :**
-- [ ] USER_GUIDE.md - Guide utilisateur
-- [ ] ADMIN_GUIDE.md - Guide administrateur IT
-- [ ] TROUBLESHOOTING.md - Guide dépannage
-- [ ] CHANGELOG.md - Historique versions
-
----
-
-## Structure complète projet (future)
+## Structure projet finale
 
 ```
 xfinder/
-├── README.md                          # ← Entrée principale
-├── CHANGELOG.md                        # Historique versions
-├── LICENSE                             # Licence
+├── README.md                    ✅ Vue d'ensemble
+├── QUICKSTART.md                ✅ Démarrage rapide
+├── GIT_WORKFLOW.md              ✅ Guide Git
+├── Cargo.toml                   ⏭️ À créer
 │
-├── docs/                               # ← Documentation
-│   ├── 00_INDEX.md                    # ← Ce fichier
-│   ├── 01_PRD_Product_Requirements.md
-│   ├── 02_Architecture_Technique.md
-│   ├── 03_Decisions_Techniques.md
-│   ├── 04_API_Schemas.md
-│   ├── 05_Plan_Tests_Metriques.md
-│   ├── CONTRIBUTING.md                 # Guide contribution
-│   ├── SETUP.md                        # Setup dev
-│   ├── USER_GUIDE.md                   # Guide utilisateur
-│   └── ADMIN_GUIDE.md                  # Guide admin IT
+├── src/
+│   ├── main.rs                  ⏭️ Hello World egui
+│   ├── app.rs                   ⏭️ État app
+│   ├── ui/                      ⏭️ Interface egui
+│   ├── search/                  ⏭️ Tantivy
+│   ├── database/                ⏭️ SQLite
+│   └── ...
 │
-├── src-tauri/                          # Backend Rust
-│   ├── src/
-│   │   ├── main.rs
-│   │   ├── commands.rs
-│   │   └── modules/
-│   │       ├── watchdog/
-│   │       ├── indexer/
-│   │       ├── content_extractor/
-│   │       ├── search_engine/
-│   │       ├── ai_engine/
-│   │       ├── email_parser/
-│   │       └── database/
-│   ├── Cargo.toml
-│   └── tauri.conf.json
-│
-├── src-ui/                             # Frontend React
-│   ├── src/
-│   │   ├── components/
-│   │   ├── hooks/
-│   │   ├── api/
-│   │   └── types/
-│   ├── package.json
-│   └── vite.config.ts
-│
-├── tests/                              # Tests
-│   ├── integration/
-│   ├── e2e/
-│   ├── fixtures/
-│   └── benchmarks/
-│
-├── scripts/                            # Scripts utilitaires
-│   ├── generate_corpus.py
-│   ├── benchmark.sh
-│   └── release.sh
-│
-└── .github/
-    └── workflows/
-        ├── ci.yml
-        ├── release.yml
-        └── benchmarks.yml
+└── docs/
+    ├── 00_INDEX.md              ✅ Ce fichier
+    ├── 01_PRD...                ✅ Specs
+    ├── 03_Decisions...          ⚠️ Note egui
+    ├── 05_Tests...              ✅ Tests
+    ├── 06_Backlog...            ⚠️ Note tâches egui
+    ├── 07_Securite...           ✅ Sécurité
+    └── 08_Architecture_egui...  ✅ RÉFÉRENCE FINALE
 ```
+
+---
+
+## Stack technique FINALE
+
+| Composant | Technologie | Justification |
+|-----------|-------------|---------------|
+| **UI** | **egui** | Natif, rapide, Rust pur |
+| **Windowing** | winit | Inclus avec egui |
+| **Rendering** | wgpu | GPU-accelerated |
+| **Search** | Tantivy | Prouvé (spotlight_windows) |
+| **Database** | SQLite | Léger, fiable |
+| **OCR** | Tesseract | Best-in-class offline |
+| **IA** | Candle + LEANN | Rust ML |
+| **Email** | libpff + mailparse | PST + MBOX |
+
+**Taille : ~8MB base + 110MB (OCR+IA) = 118MB**
 
 ---
 
@@ -226,100 +141,12 @@ xfinder/
 
 | Terme | Définition |
 |-------|------------|
-| **Watchdog** | Surveillance temps réel filesystem |
-| **Embedding** | Représentation vectorielle texte (pour IA) |
+| **egui** | Framework UI natif Rust immediate mode |
+| **Tantivy** | Moteur recherche full-text (Lucene-like) |
 | **LEANN** | Vector DB ultra-compact (97% réduction) |
-| **OCR** | Optical Character Recognition (reconnaissance texte images) |
-| **FTS5** | SQLite Full-Text Search extension |
-| **Tantivy** | Moteur recherche Rust (like Lucene) |
-| **PST** | Format fichier Outlook (.pst) |
-| **MBOX** | Format fichier Thunderbird (.mbox) |
-| **IPC** | Inter-Process Communication (Tauri ↔ React) |
-| **Fuzzy matching** | Recherche tolérante fautes frappe |
-| **Assist Me** | Mode conversationnel IA |
-| **RAG** | Retrieval-Augmented Generation (IA + sources) |
-
----
-
-## Conventions documentation
-
-### Format
-- **Markdown** (.md) pour tout
-- Headers ATX (`#`, `##`) pas Setext
-- Code blocks avec langage : \`\`\`rust, \`\`\`typescript
-- Tables pour comparaisons
-
-### Structure document
-1. Titre + description
-2. Table matières (si >5 sections)
-3. Contenu
-4. Footer : version + date
-
-### Mises à jour
-- Incrémenter version (1.0 → 1.1)
-- Ajouter date "Dernière mise à jour"
-- Documenter changements majeurs
-
----
-
-## Contribution documentation
-
-### Ajouter document
-1. Créer fichier `docs/NN_Nom_Document.md`
-2. Ajouter entrée dans `00_INDEX.md`
-3. Linker depuis documents pertinents
-
-### Modifier document existant
-1. Éditer fichier
-2. Incrémenter version en footer
-3. Ajouter ligne changelog si changement majeur
-
-### Review
-- Documentation reviewée comme code
-- PR requises pour changements majeurs
-- Typos : fix direct OK
-
----
-
-## Ressources externes
-
-### Références techniques
-- [Tauri docs](https://tauri.app/v2/guides/)
-- [Tantivy docs](https://docs.rs/tantivy/)
-- [LEANN GitHub](https://github.com/yichuan-w/LEANN)
-- [Tesseract docs](https://tesseract-ocr.github.io/)
-- [all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2)
-
-### Inspiration produit
-- [Everything](https://www.voidtools.com/) - Recherche rapide Windows
-- [Recoll](https://www.lesbonscomptes.com/recoll/) - Recherche full-text
-- [Alfred](https://www.alfredapp.com/) - Launcher macOS
-- [Raycast](https://www.raycast.com/) - Launcher moderne
-
----
-
-## Support
-
-### Questions projet
-- GitHub Issues : [À créer]
-- Discussions : [À créer]
-
-### Questions documentation
-- Ouvrir issue avec tag `documentation`
-- Proposer PR pour corrections
-
----
-
-## Statistiques documentation
-
-| Métrique | Valeur |
-|----------|--------|
-| **Documents totaux** | 6 |
-| **Pages totales** | ~180 |
-| **Mots totaux** | ~35,000 |
-| **Langues** | Français |
-| **Format** | Markdown |
-| **Couverture** | 100% features MVP |
+| **Watchdog** | Surveillance filesystem temps réel |
+| **OCR** | Optical Character Recognition |
+| **Embedding** | Représentation vectorielle texte (IA) |
 
 ---
 
@@ -327,27 +154,25 @@ xfinder/
 
 | Date | Version | Changements |
 |------|---------|-------------|
-| 2025-11-12 | 1.0 | Création documentation complète initiale |
+| 2025-11-12 | 1.0 | Documentation complète initiale |
+| 2025-11-12 | 1.1 | **Migration Tauri → egui** (décision finale) |
 
 ---
 
 ## Prochaines étapes
 
 ### Documentation
-1. ✅ Documents base créés
-2. ⏭️ CONTRIBUTING.md (Phase 1)
-3. ⏭️ SETUP.md (Phase 1)
-4. ⏭️ Résultats POC LEANN (Phase 3)
-5. ⏭️ USER_GUIDE.md (Phase 5)
+1. ✅ Index mis à jour (ce fichier)
+2. ⏭️ Mise à jour 03_Decisions (note egui)
+3. ⏭️ Mise à jour 06_Backlog (tâches egui)
 
 ### Projet
-1. ✅ Specs complètes
-2. ⏭️ POC LEANN (semaine 3-4)
-3. ⏭️ Setup Tauri projet (semaine 3)
-4. ⏭️ Développement MVP (semaines 3-8)
+1. ⏭️ Hello World egui (QUICKSTART.md)
+2. ⏭️ Tantivy recherche basique (Semaine 1)
+3. ⏭️ SQLite + métadonnées (Semaine 2)
 
 ---
 
-**Index version :** 1.0
+**Index version :** 1.1
 **Dernière mise à jour :** 2025-11-12
-**Maintenance :** À mettre à jour chaque nouvelle phase
+**Architecture actuelle :** egui natif Rust
