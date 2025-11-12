@@ -45,35 +45,56 @@ pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
             ui.separator();
             ui.add_space(10.0);
 
-            ui.label("Dossier a indexer:");
-            ui.horizontal(|ui| {
-                ui.text_edit_singleline(&mut app.scan_path);
-                if ui.button("Parcourir...").clicked() {
-                    if let Some(path) = rfd::FileDialog::new().pick_folder() {
-                        app.scan_path = path.to_string_lossy().to_string();
+            ui.label("Dossiers a indexer:");
+
+            // Afficher la liste des dossiers
+            let mut to_remove = None;
+            for (idx, path) in app.scan_paths.iter().enumerate() {
+                ui.horizontal(|ui| {
+                    ui.label(format!("{}. {}", idx + 1, path));
+                    if ui.button("X").clicked() {
+                        to_remove = Some(idx);
                     }
-                }
-            });
+                });
+            }
+
+            if let Some(idx) = to_remove {
+                app.remove_scan_path(idx);
+            }
 
             ui.add_space(5.0);
 
-            // Boutons rapides
-            ui.horizontal(|ui| {
+            // Ajouter un nouveau dossier
+            if ui.button("+ Ajouter dossier").clicked() {
+                if let Some(path) = rfd::FileDialog::new().pick_folder() {
+                    app.add_scan_path(path.to_string_lossy().to_string());
+                }
+            }
+
+            ui.add_space(5.0);
+
+            // Boutons rapides pour ajouter des dossiers communs
+            ui.label("Raccourcis:");
+            ui.horizontal_wrapped(|ui| {
+                if ui.button("C:\\").clicked() {
+                    app.add_scan_path("C:\\".to_string());
+                }
+                if ui.button("D:\\").clicked() {
+                    app.add_scan_path("D:\\".to_string());
+                }
                 if ui.button("Downloads").clicked() {
                     if let Some(downloads) = dirs::download_dir() {
-                        app.scan_path = downloads.to_string_lossy().to_string();
+                        app.add_scan_path(downloads.to_string_lossy().to_string());
                     }
                 }
-
                 if ui.button("Documents").clicked() {
                     if let Some(docs) = dirs::document_dir() {
-                        app.scan_path = docs.to_string_lossy().to_string();
+                        app.add_scan_path(docs.to_string_lossy().to_string());
                     }
                 }
-
                 if ui.button("Bureau").clicked() {
                     if let Some(desktop) = dirs::desktop_dir() {
-                        app.scan_path = desktop.to_string_lossy().to_string();
+                        app.add_scan_path(desktop.to_string_lossy().to_string());
                     }
                 }
             });

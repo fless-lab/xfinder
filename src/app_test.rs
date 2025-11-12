@@ -7,13 +7,12 @@ mod tests {
     use std::path::PathBuf;
 
     #[test]
-    fn test_default_scan_path_is_valid() {
+    fn test_default_scan_paths_is_valid() {
         let app = XFinderApp::default();
 
-        // Le scan path par défaut doit être un chemin valide
-        let _path = PathBuf::from(&app.scan_path);
-        assert!(!app.scan_path.is_empty());
-        // On ne teste pas exists() car le dossier peut ne pas exister
+        // Les scan paths par défaut doivent contenir au moins 1 chemin
+        assert!(!app.scan_paths.is_empty());
+        assert!(!app.scan_paths[0].is_empty());
     }
 
     #[test]
@@ -28,15 +27,21 @@ mod tests {
     }
 
     #[test]
-    fn test_scan_path_can_be_updated() {
+    fn test_can_add_remove_scan_paths() {
         let mut app = XFinderApp::default();
-        let old_path = app.scan_path.clone();
+        let initial_count = app.scan_paths.len();
 
-        // On peut changer le scan path
-        app.scan_path = "C:\\Windows".to_string();
+        // Ajouter un chemin
+        app.add_scan_path("C:\\Windows".to_string());
+        assert_eq!(app.scan_paths.len(), initial_count + 1);
 
-        assert_ne!(app.scan_path, old_path);
-        assert_eq!(app.scan_path, "C:\\Windows");
+        // Ajouter le même chemin (ne doit pas dupliquer)
+        app.add_scan_path("C:\\Windows".to_string());
+        assert_eq!(app.scan_paths.len(), initial_count + 1);
+
+        // Retirer un chemin
+        app.remove_scan_path(0);
+        assert_eq!(app.scan_paths.len(), initial_count);
     }
 
     #[test]

@@ -12,7 +12,7 @@ pub struct XFinderApp {
     pub search_results: Vec<SearchResult>,
     pub search_index: Option<SearchIndex>,
     pub index_dir: PathBuf,
-    pub scan_path: String,
+    pub scan_paths: Vec<String>, // Support multi-dossiers
     pub index_status: IndexStatus,
     pub indexing_in_progress: bool,
     pub error_message: Option<String>,
@@ -36,24 +36,26 @@ impl Default for XFinderApp {
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
             .join(".xfinder_index");
 
-        // Dossier par défaut = Downloads
-        let default_scan = dirs::download_dir()
-            .unwrap_or_else(|| dirs::home_dir().unwrap_or_default())
-            .to_string_lossy()
-            .to_string();
+        // Dossiers par défaut
+        let default_paths = vec![
+            dirs::download_dir()
+                .unwrap_or_else(|| dirs::home_dir().unwrap_or_default())
+                .to_string_lossy()
+                .to_string()
+        ];
 
         Self {
             search_query: String::new(),
             search_results: Vec::new(),
             search_index: None,
             index_dir,
-            scan_path: default_scan,
+            scan_paths: default_paths,
             index_status: IndexStatus::default(),
             indexing_in_progress: false,
             error_message: None,
             preview_file_path: None,
             max_files_to_index: 10000,
-            results_display_limit: 50, // Affiche 50 résultats au départ
+            results_display_limit: 50,
         }
     }
 }
@@ -82,12 +84,14 @@ impl XFinderApp {
         }
 
         if let Some(ref index) = self.search_index {
-            let scan_path = PathBuf::from(&self.scan_path);
-
-            if !scan_path.exists() {
-                self.error_message = Some("Dossier inexistant".to_string());
-                self.indexing_in_progress = false;
-                return;
+            // Vérifier que tous les chemins existent
+            for path_str in &self.scan_paths {
+                let path = PathBuf::from(path_str);
+                if !path.exists() {
+                    self.error_message = Some(format!("Dossier inexistant: {}", path_str));
+                    self.indexing_in_progress = false;
+                    return;
+                }
             }
 
             // Si demandé, effacer l'index existant
@@ -100,46 +104,53 @@ impl XFinderApp {
             }
 
             let scanner = FileScanner::new();
+            let mut total_indexed = 0;
+            let files_per_path = self.max_files_to_index / self.scan_paths.len().max(1);
 
-            match scanner.scan_directory(&scan_path, self.max_files_to_index) {
-                Ok(files) => {
-                    match index.create_writer() {
-                        Ok(mut writer) => {
-                            let mut indexed_count = 0;
+            match index.create_writer() {
+                Ok(mut writer) => {
+                    // Scanner chaque dossier
+                    for path_str in &self.scan_paths {
+                        let scan_path = PathBuf::from(path_str);
 
-                            for file in &files {
-                                if index.add_file(&mut writer, &file.path, &file.filename).is_ok() {
-                                    indexed_count += 1;
+                        match scanner.scan_directory(&scan_path, files_per_path) {
+                            Ok(files) => {
+                                for file in &files {
+                                    if index.add_file(&mut writer, &file.path, &file.filename).is_ok() {
+                                        total_indexed += 1;
+                                    }
                                 }
                             }
-
-                            match writer.commit() {
-                                Ok(_) => {
-                                    self.index_status.file_count = indexed_count;
-                                    self.index_status.last_update = Some(
-                                        chrono::Local::now()
-                                            .format("%Y-%m-%d %H:%M:%S")
-                                            .to_string(),
-                                    );
-                                    self.index_status.indexed_path = Some(scan_path.display().to_string());
-                                    self.error_message = Some(format!(
-                                        "{} fichiers indexes ({})",
-                                        indexed_count,
-                                        scan_path.display()
-                                    ));
-                                }
-                                Err(e) => {
-                                    self.error_message = Some(format!("Erreur commit: {}", e));
-                                }
+                            Err(e) => {
+                                self.error_message = Some(format!("Erreur scan {}: {}", path_str, e));
                             }
                         }
+                    }
+
+                    match writer.commit() {
+                        Ok(_) => {
+                            self.index_status.file_count = total_indexed;
+                            self.index_status.last_update = Some(
+                                chrono::Local::now()
+                                    .format("%Y-%m-%d %H:%M:%S")
+                                    .to_string(),
+                            );
+                            self.index_status.indexed_path = Some(
+                                self.scan_paths.join(", ")
+                            );
+                            self.error_message = Some(format!(
+                                "{} fichiers indexes depuis {} dossiers",
+                                total_indexed,
+                                self.scan_paths.len()
+                            ));
+                        }
                         Err(e) => {
-                            self.error_message = Some(format!("Erreur writer: {}", e));
+                            self.error_message = Some(format!("Erreur commit: {}", e));
                         }
                     }
                 }
                 Err(e) => {
-                    self.error_message = Some(format!("Erreur scan: {}", e));
+                    self.error_message = Some(format!("Erreur writer: {}", e));
                 }
             }
         }
@@ -152,12 +163,24 @@ impl XFinderApp {
         self.start_indexing(false);
     }
 
-    // Vérifie si le chemin à indexer est différent du dernier indexé
+    // Vérifie si les chemins à indexer sont différents des derniers indexés
     pub fn is_path_changed(&self) -> bool {
         if let Some(ref indexed_path) = self.index_status.indexed_path {
-            indexed_path != &self.scan_path
+            indexed_path != &self.scan_paths.join(", ")
         } else {
             false
+        }
+    }
+
+    pub fn add_scan_path(&mut self, path: String) {
+        if !self.scan_paths.contains(&path) {
+            self.scan_paths.push(path);
+        }
+    }
+
+    pub fn remove_scan_path(&mut self, index: usize) {
+        if index < self.scan_paths.len() {
+            self.scan_paths.remove(index);
         }
     }
 
