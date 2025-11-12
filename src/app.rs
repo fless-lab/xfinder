@@ -132,16 +132,16 @@ impl XFinderApp {
 
         // Lancer l'indexation dans un thread séparé
         std::thread::spawn(move || {
-            // Charger l'index dans le thread
+            // Effacer complètement si demandé (pour forcer nouveau schéma/tokenizer)
+            if clear_existing {
+                let _ = SearchIndex::delete_completely(&index_dir);
+            }
+
+            // Charger l'index (nouveau schéma si on a effacé)
             let index = match SearchIndex::new(&index_dir) {
                 Ok(idx) => idx,
                 Err(_) => return,
             };
-
-            // Effacer si demandé
-            if clear_existing {
-                let _ = index.clear();
-            }
 
             let scanner = FileScanner::new();
             let files_per_path = max_files / scan_paths.len().max(1);

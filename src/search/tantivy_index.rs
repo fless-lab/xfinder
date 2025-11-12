@@ -116,6 +116,15 @@ impl SearchIndex {
         Ok(())
     }
 
+    // Supprime COMPLÈTEMENT l'index (dossier + schéma + tout)
+    // Nécessaire pour changer le tokenizer
+    pub fn delete_completely(index_dir: &std::path::Path) -> Result<()> {
+        if index_dir.exists() {
+            std::fs::remove_dir_all(index_dir)?;
+        }
+        Ok(())
+    }
+
     // Compte le nombre de documents dans l'index
     pub fn count_documents(&self) -> Result<usize> {
         let reader = self.index.reader()?;
