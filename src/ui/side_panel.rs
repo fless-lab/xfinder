@@ -39,13 +39,17 @@ pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
                     app.index_status.total_to_index
                 ));
 
-                // Progress bar
+                // Progress bar (couleur cohérente avec l'UI)
                 if app.index_status.total_to_index > 0 {
                     let progress = app.index_status.current_indexed as f32 /
                                   app.index_status.total_to_index as f32;
-                    ui.add(egui::ProgressBar::new(progress)
+                    let mut pb = egui::ProgressBar::new(progress)
                         .show_percentage()
-                        .animate(true));
+                        .animate(true);
+
+                    // Couleur grise/orange comme le reste
+                    pb = pb.fill(egui::Color32::from_rgb(200, 150, 100));
+                    ui.add(pb);
                 }
             }
 

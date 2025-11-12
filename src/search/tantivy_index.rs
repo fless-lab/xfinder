@@ -58,10 +58,10 @@ impl SearchIndex {
             .context("Impossible de créer/ouvrir l'index Tantivy")?;
 
         // Enregistrer le tokenizer n-gram
-        // Min=1, Max=5 pour capturer même les recherches courtes comme ".m"
-        // Ex: ".md" → ".", "m", "d", ".m", "md", ".md"
+        // Min=2, Max=6 pour bon équilibre: flexible mais pas trop permissif
+        // "filtrag" → "fi", "il", "lt", "tr", "ra", "ag", "fil", "ilt", etc.
         let ngram_tokenizer = TextAnalyzer::builder(
-            NgramTokenizer::new(1, 5, false).unwrap()
+            NgramTokenizer::new(2, 6, false).unwrap()
         )
         .filter(LowerCaser)
         .build();
