@@ -7,6 +7,7 @@ edition = "2021"
 # === UI (egui natif) ===
 eframe = "0.27"
 egui = "0.27"
+rfd = "0.14"
 
 # === Search (Tantivy - comme spotlight_windows) ===
 tantivy = "0.22"

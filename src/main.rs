@@ -7,6 +7,9 @@ mod app;
 mod search;
 mod ui;
 
+#[cfg(test)]
+mod app_test;
+
 use app::XFinderApp;
 
 fn main() -> eframe::Result<()> {
