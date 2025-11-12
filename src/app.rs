@@ -12,6 +12,7 @@ pub struct XFinderApp {
     pub search_results: Vec<SearchResult>,
     pub search_index: Option<SearchIndex>,
     pub index_dir: PathBuf,
+    pub scan_path: String,
     pub index_status: IndexStatus,
     pub indexing_in_progress: bool,
     pub error_message: Option<String>,
@@ -26,15 +27,23 @@ pub struct IndexStatus {
 
 impl Default for XFinderApp {
     fn default() -> Self {
-        let index_dir = std::env::current_dir()
-            .unwrap_or_default()
+        // Index dans le home dir de l'utilisateur
+        let index_dir = dirs::home_dir()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
             .join(".xfinder_index");
+
+        // Dossier par défaut = Downloads
+        let default_scan = dirs::download_dir()
+            .unwrap_or_else(|| dirs::home_dir().unwrap_or_default())
+            .to_string_lossy()
+            .to_string();
 
         Self {
             search_query: String::new(),
             search_results: Vec::new(),
             search_index: None,
             index_dir,
+            scan_path: default_scan,
             index_status: IndexStatus::default(),
             indexing_in_progress: false,
             error_message: None,
@@ -65,14 +74,17 @@ impl XFinderApp {
         }
 
         if let Some(ref index) = self.search_index {
-            // Scan dossier Downloads (ou temp si pas accessible)
-            let scan_path = dirs::download_dir()
-                .or_else(|| Some(std::env::temp_dir()))
-                .unwrap_or_else(|| std::path::PathBuf::from("."));
+            let scan_path = PathBuf::from(&self.scan_path);
+
+            if !scan_path.exists() {
+                self.error_message = Some("Dossier inexistant".to_string());
+                self.indexing_in_progress = false;
+                return;
+            }
 
             let scanner = FileScanner::new();
 
-            match scanner.scan_directory(&scan_path, 100) {
+            match scanner.scan_directory(&scan_path, 500) {
                 Ok(files) => {
                     match index.create_writer() {
                         Ok(mut writer) => {

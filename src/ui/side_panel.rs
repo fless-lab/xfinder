@@ -40,23 +40,39 @@ pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
             ui.separator();
             ui.add_space(10.0);
 
-            ui.label("Actions:");
-            if ui.button("Charger Index Existant").clicked() {
-                app.load_index();
+            ui.label("Dossier a indexer:");
+            ui.horizontal(|ui| {
+                ui.text_edit_singleline(&mut app.scan_path);
+            });
+
+            ui.add_space(5.0);
+
+            // Boutons rapides
+            if ui.button("Downloads").clicked() {
+                if let Some(downloads) = dirs::download_dir() {
+                    app.scan_path = downloads.to_string_lossy().to_string();
+                }
             }
 
-            if ui.button("Rafraichir Statistiques").clicked() {
-                app.error_message = Some("Fonctionnalite en cours".to_string());
+            if ui.button("Documents").clicked() {
+                if let Some(docs) = dirs::document_dir() {
+                    app.scan_path = docs.to_string_lossy().to_string();
+                }
+            }
+
+            if ui.button("Bureau").clicked() {
+                if let Some(desktop) = dirs::desktop_dir() {
+                    app.scan_path = desktop.to_string_lossy().to_string();
+                }
             }
 
             ui.add_space(10.0);
             ui.separator();
             ui.add_space(10.0);
 
-            ui.label("Informations:");
-            ui.label(format!(
-                "Dossier courant: {}",
-                std::env::current_dir().unwrap_or_default().display()
-            ));
+            ui.label("Actions:");
+            if ui.button("Charger Index Existant").clicked() {
+                app.load_index();
+            }
         });
 }
