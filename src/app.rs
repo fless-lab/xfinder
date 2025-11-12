@@ -107,7 +107,16 @@ impl XFinderApp {
         self.index_status.current_indexed = 0;
         self.index_status.total_to_index = 0;
 
-        if self.search_index.is_none() {
+        // CRITIQUE: Fermer l'ancien index AVANT de le supprimer
+        // Sinon les fichiers restent verrouillés et delete_completely() échoue
+        if clear_existing {
+            self.search_index = None; // Drop l'ancien index pour libérer les fichiers
+            self.file_watcher = None; // Fermer le watchdog aussi
+            self.index_status.is_ready = false;
+        }
+
+        // Ne charger l'index existant QUE si on fait un refresh (pas une nouvelle indexation)
+        if self.search_index.is_none() && !clear_existing {
             self.load_index();
         }
 
@@ -363,6 +372,9 @@ impl XFinderApp {
                 self.scan_paths.len()
             ));
             self.progress_rx = None;
+
+            // Recharger le nouvel index créé par le thread
+            self.load_index();
         }
     }
 }

@@ -62,4 +62,42 @@ mod integration_tests {
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
+
+    #[test]
+    fn test_incremental_typing_filtra_to_filtrag() {
+        let temp_dir = std::env::temp_dir().join("xfinder_test_incremental");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+
+        let index = SearchIndex::new(&temp_dir).unwrap();
+        let mut writer = index.create_writer().unwrap();
+
+        // Fichiers réels de l'utilisateur
+        index.add_file(&mut writer, "C:\\Users\\ATD\\Downloads\\Documents\\Filtrage.pdf", "Filtrage.pdf").unwrap();
+        index.add_file(&mut writer, "C:\\Users\\ATD\\Downloads\\Documents\\cours_filtrage.pdf", "cours_filtrage.pdf").unwrap();
+        index.add_file(&mut writer, "C:\\Users\\ATD\\Downloads\\Documents\\le-filtrage-actif-passif.pdf", "le-filtrage-actif-passif.pdf").unwrap();
+        writer.commit().unwrap();
+
+        // Test progression "filtra" -> "filtrag"
+        println!("\n=== Test Incremental Typing ===");
+
+        let results = index.search("filtra", 10).unwrap();
+        println!("'filtra': {} résultats", results.len());
+        for r in &results {
+            println!("  - {} (score: {:.2})", r.filename, r.score);
+        }
+        assert!(results.len() >= 3, "FAIL: 'filtra' devrait trouver 3 fichiers");
+
+        let results = index.search("filtrag", 10).unwrap();
+        println!("'filtrag': {} résultats", results.len());
+        for r in &results {
+            println!("  - {} (score: {:.2})", r.filename, r.score);
+        }
+        assert!(results.len() >= 3, "FAIL: 'filtrag' devrait AUSSI trouver 3 fichiers!");
+
+        let results = index.search("filtrage", 10).unwrap();
+        println!("'filtrage': {} résultats", results.len());
+        assert!(results.len() >= 3, "FAIL: 'filtrage' devrait trouver 3 fichiers");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
 }
