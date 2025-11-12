@@ -32,11 +32,20 @@ impl SearchIndex {
     // - path: chemin complet du fichier (TEXT | STORED)
     // - filename: nom du fichier uniquement (TEXT | STORED)
     pub fn new(index_dir: &Path) -> Result<Self> {
-        // Commençons par définir le schéma de l'index
-        // Un schéma définit la structure des documents qu'on va indexer
+        // Schéma avec n-grams pour recherche "as-you-type"
+        // Ex: tape "doc" → trouve "document.pdf"
         let mut schema_builder = Schema::builder();
-        let path_field = schema_builder.add_text_field("path", TEXT | STORED);
-        let filename_field = schema_builder.add_text_field("filename", TEXT | STORED);
+
+        let text_opts = TextOptions::default()
+            .set_indexing_options(
+                TextFieldIndexing::default()
+                    .set_tokenizer("default")
+                    .set_index_option(IndexRecordOption::WithFreqsAndPositions)
+            )
+            .set_stored();
+
+        let path_field = schema_builder.add_text_field("path", text_opts.clone());
+        let filename_field = schema_builder.add_text_field("filename", text_opts);
         let schema = schema_builder.build();
 
         // Assurons-nous que le dossier d'index existe

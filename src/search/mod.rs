@@ -1,8 +1,10 @@
 // src/search/mod.rs
 // Module de recherche avec Tantivy
 
+pub mod scanner;
 pub mod tantivy_index;
 
+pub use scanner::{FileEntry, FileScanner};
 pub use tantivy_index::SearchIndex;
 
 // Résultat de recherche

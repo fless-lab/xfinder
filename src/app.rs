@@ -4,7 +4,7 @@
 use eframe::egui;
 use std::path::PathBuf;
 
-use crate::search::{SearchIndex, SearchResult};
+use crate::search::{FileScanner, SearchIndex, SearchResult};
 use crate::ui::{render_main_ui, render_side_panel, render_top_panel};
 
 pub struct XFinderApp {
@@ -65,39 +65,51 @@ impl XFinderApp {
         }
 
         if let Some(ref index) = self.search_index {
-            match index.create_writer() {
-                Ok(mut writer) => {
-                    let test_files = vec![
-                        ("C:\\Users\\Public\\test1.txt", "test1.txt"),
-                        ("C:\\Users\\Public\\test2.pdf", "test2.pdf"),
-                        ("C:\\Users\\Public\\document.docx", "document.docx"),
-                    ];
+            // Scan dossier Downloads (ou temp si pas accessible)
+            let scan_path = dirs::download_dir()
+                .or_else(|| Some(std::env::temp_dir()))
+                .unwrap_or_else(|| std::path::PathBuf::from("."));
 
-                    let mut indexed_count = 0;
-                    for (path, filename) in test_files {
-                        if index.add_file(&mut writer, path, filename).is_ok() {
-                            indexed_count += 1;
-                        }
-                    }
+            let scanner = FileScanner::new();
 
-                    match writer.commit() {
-                        Ok(_) => {
-                            self.index_status.file_count = indexed_count;
-                            self.index_status.last_update = Some(
-                                chrono::Local::now()
-                                    .format("%Y-%m-%d %H:%M:%S")
-                                    .to_string(),
-                            );
-                            self.error_message =
-                                Some(format!("{} fichiers indexes avec succes", indexed_count));
+            match scanner.scan_directory(&scan_path, 100) {
+                Ok(files) => {
+                    match index.create_writer() {
+                        Ok(mut writer) => {
+                            let mut indexed_count = 0;
+
+                            for file in &files {
+                                if index.add_file(&mut writer, &file.path, &file.filename).is_ok() {
+                                    indexed_count += 1;
+                                }
+                            }
+
+                            match writer.commit() {
+                                Ok(_) => {
+                                    self.index_status.file_count = indexed_count;
+                                    self.index_status.last_update = Some(
+                                        chrono::Local::now()
+                                            .format("%Y-%m-%d %H:%M:%S")
+                                            .to_string(),
+                                    );
+                                    self.error_message = Some(format!(
+                                        "{} fichiers indexes ({})",
+                                        indexed_count,
+                                        scan_path.display()
+                                    ));
+                                }
+                                Err(e) => {
+                                    self.error_message = Some(format!("Erreur commit: {}", e));
+                                }
+                            }
                         }
                         Err(e) => {
-                            self.error_message = Some(format!("Erreur commit: {}", e));
+                            self.error_message = Some(format!("Erreur writer: {}", e));
                         }
                     }
                 }
                 Err(e) => {
-                    self.error_message = Some(format!("Erreur creation writer: {}", e));
+                    self.error_message = Some(format!("Erreur scan: {}", e));
                 }
             }
         }
