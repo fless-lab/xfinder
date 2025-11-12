@@ -43,3 +43,4 @@ models/
 # Temp
 tmp/
 temp/
+/.claude
