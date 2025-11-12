@@ -4,21 +4,24 @@
 use eframe::egui;
 use std::path::PathBuf;
 
-use crate::search::{FileScanner, SearchIndex, SearchResult};
+use crate::search::{FileScanner, SearchIndex, SearchResult, FileWatcher};
 use crate::ui::{render_main_ui, render_side_panel, render_top_panel, render_preview_panel};
 
 pub struct XFinderApp {
     pub search_query: String,
     pub search_results: Vec<SearchResult>,
     pub search_index: Option<SearchIndex>,
+    pub file_watcher: Option<FileWatcher>,
     pub index_dir: PathBuf,
-    pub scan_paths: Vec<String>, // Support multi-dossiers
+    pub scan_paths: Vec<String>,
     pub index_status: IndexStatus,
     pub indexing_in_progress: bool,
     pub error_message: Option<String>,
     pub preview_file_path: Option<String>,
     pub max_files_to_index: usize,
     pub results_display_limit: usize,
+    pub watchdog_enabled: bool,
+    pub watchdog_update_count: usize,
 }
 
 #[derive(Default)]
@@ -48,6 +51,7 @@ impl Default for XFinderApp {
             search_query: String::new(),
             search_results: Vec::new(),
             search_index: None,
+            file_watcher: None,
             index_dir,
             scan_paths: default_paths,
             index_status: IndexStatus::default(),
@@ -56,6 +60,8 @@ impl Default for XFinderApp {
             preview_file_path: None,
             max_files_to_index: 10000,
             results_display_limit: 50,
+            watchdog_enabled: false,
+            watchdog_update_count: 0,
         }
     }
 }
@@ -212,13 +218,80 @@ impl XFinderApp {
     pub fn load_more_results(&mut self) {
         self.results_display_limit += 50;
     }
+
+    // Active le watchdog sur tous les dossiers surveillés
+    pub fn enable_watchdog(&mut self) {
+        if self.watchdog_enabled {
+            return; // Déjà activé
+        }
+
+        match FileWatcher::new() {
+            Ok(mut watcher) => {
+                // Surveiller tous les dossiers
+                for path_str in &self.scan_paths {
+                    let path = PathBuf::from(path_str);
+                    if path.exists() {
+                        if let Err(e) = watcher.watch_path(&path) {
+                            self.error_message = Some(format!("Erreur watchdog {}: {}", path_str, e));
+                            return;
+                        }
+                    }
+                }
+
+                self.file_watcher = Some(watcher);
+                self.watchdog_enabled = true;
+                self.error_message = Some(format!("Watchdog active sur {} dossiers", self.scan_paths.len()));
+            }
+            Err(e) => {
+                self.error_message = Some(format!("Erreur init watchdog: {}", e));
+            }
+        }
+    }
+
+    // Désactive le watchdog
+    pub fn disable_watchdog(&mut self) {
+        self.file_watcher = None;
+        self.watchdog_enabled = false;
+        self.error_message = Some("Watchdog desactive".to_string());
+    }
+
+    // Appliquer les changements du watchdog à l'index
+    // Appelé à chaque frame pour low latency
+    pub fn process_watchdog_events(&mut self) {
+        if !self.watchdog_enabled {
+            return;
+        }
+
+        if let Some(ref watcher) = self.file_watcher {
+            if let Some(ref index) = self.search_index {
+                match watcher.apply_events_to_index(index) {
+                    Ok(count) if count > 0 => {
+                        self.watchdog_update_count += count;
+                        self.index_status.file_count += count; // Approximatif
+                    }
+                    Err(e) => {
+                        self.error_message = Some(format!("Erreur watchdog: {}", e));
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
 }
 
 impl eframe::App for XFinderApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Traiter les événements watchdog à chaque frame (low latency)
+        self.process_watchdog_events();
+
         render_top_panel(ctx, self);
         render_side_panel(ctx, self);
         render_main_ui(ctx, self);
         render_preview_panel(ctx, self);
+
+        // Redemander un repaint pour traiter les événements en continu
+        if self.watchdog_enabled {
+            ctx.request_repaint();
+        }
     }
 }

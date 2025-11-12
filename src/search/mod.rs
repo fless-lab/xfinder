@@ -3,9 +3,11 @@
 
 pub mod scanner;
 pub mod tantivy_index;
+pub mod file_watcher;
 
 pub use scanner::{FileEntry, FileScanner};
 pub use tantivy_index::SearchIndex;
+pub use file_watcher::{FileWatcher, FileEvent};
 
 // Résultat de recherche avec métadonnées
 #[derive(Debug, Clone)]

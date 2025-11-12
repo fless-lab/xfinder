@@ -9,10 +9,10 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 use tantivy::collector::TopDocs;
-use tantivy::query::QueryParser;
+use tantivy::query::{QueryParser, TermQuery};
 use tantivy::schema::*;
 use tantivy::tokenizer::{NgramTokenizer, LowerCaser, TextAnalyzer};
-use tantivy::{doc, Index, IndexWriter, TantivyDocument};
+use tantivy::{doc, Index, IndexWriter, TantivyDocument, Term};
 
 use super::SearchResult;
 
@@ -120,6 +120,47 @@ impl SearchIndex {
         let reader = self.index.reader()?;
         let searcher = reader.searcher();
         Ok(searcher.num_docs() as usize)
+    }
+
+    // Supprime un fichier de l'index par son chemin
+    pub fn delete_file_by_path(&self, file_path: &str) -> Result<()> {
+        let mut writer = self.create_writer()?;
+        let term = Term::from_field_text(self.path_field, file_path);
+        writer.delete_term(term);
+        writer.commit()?;
+        Ok(())
+    }
+
+    // Met à jour le chemin d'un fichier (pour les déplacements)
+    // Supprime l'ancien chemin et ajoute le nouveau
+    pub fn update_file_path(&self, old_path: &str, new_path: &str, filename: &str) -> Result<()> {
+        let mut writer = self.create_writer()?;
+
+        // Supprimer l'ancien
+        let term = Term::from_field_text(self.path_field, old_path);
+        writer.delete_term(term);
+
+        // Ajouter le nouveau
+        self.add_file(&mut writer, new_path, filename)?;
+
+        writer.commit()?;
+        Ok(())
+    }
+
+    // Met à jour un fichier existant (pour les modifications)
+    // Garde le même path mais rafraîchit les métadonnées
+    pub fn update_file(&self, path: &str, filename: &str) -> Result<()> {
+        let mut writer = self.create_writer()?;
+
+        // Supprimer l'ancien
+        let term = Term::from_field_text(self.path_field, path);
+        writer.delete_term(term);
+
+        // Ré-ajouter avec nouvelles métadonnées
+        self.add_file(&mut writer, path, filename)?;
+
+        writer.commit()?;
+        Ok(())
     }
 
     // Recherche fuzzy avec n-grams

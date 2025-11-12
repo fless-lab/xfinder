@@ -17,6 +17,8 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 
 # === Filesystem ===
 walkdir = "2.4"
+notify = "6.1"
+crossbeam-channel = "0.5"
 
 # === Utils ===
 anyhow = "1.0"

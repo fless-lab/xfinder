@@ -151,5 +151,29 @@ pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
             ui.label("Info:");
             ui.label("- Nouvelle: Efface l'ancien index");
             ui.label("- Rafraichir: Ajoute nouveaux fichiers");
+
+            ui.add_space(10.0);
+            ui.separator();
+            ui.add_space(10.0);
+
+            // Watchdog
+            ui.label("Surveillance en temps reel:");
+            ui.horizontal(|ui| {
+                if app.watchdog_enabled {
+                    ui.label(format!("ACTIF ({} mises a jour)", app.watchdog_update_count));
+                    if ui.button("Desactiver").clicked() {
+                        app.disable_watchdog();
+                    }
+                } else {
+                    ui.label("INACTIF");
+                    if ui.button("Activer").clicked() {
+                        app.enable_watchdog();
+                    }
+                }
+            });
+
+            if app.watchdog_enabled {
+                ui.label("Detection auto: ajout/modification/suppression");
+            }
         });
 }
