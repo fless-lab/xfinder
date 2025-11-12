@@ -11,6 +11,7 @@ use std::path::Path;
 use tantivy::collector::TopDocs;
 use tantivy::query::QueryParser;
 use tantivy::schema::*;
+use tantivy::tokenizer::{NgramTokenizer, LowerCaser, TextAnalyzer};
 use tantivy::{doc, Index, IndexWriter, TantivyDocument};
 
 use super::SearchResult;
@@ -32,14 +33,15 @@ impl SearchIndex {
     // - path: chemin complet du fichier (TEXT | STORED)
     // - filename: nom du fichier uniquement (TEXT | STORED)
     pub fn new(index_dir: &Path) -> Result<Self> {
-        // Schéma avec n-grams pour recherche "as-you-type"
-        // Ex: tape "doc" → trouve "document.pdf"
+        // Schéma avec n-grams pour recherche fuzzy
+        // N-gram de taille 3: "DataOps" → "Dat", "ata", "taO", "aOp", "Ops"
+        // Permet de trouver même avec sous-chaîne partielle
         let mut schema_builder = Schema::builder();
 
         let text_opts = TextOptions::default()
             .set_indexing_options(
                 TextFieldIndexing::default()
-                    .set_tokenizer("default")
+                    .set_tokenizer("ngram3")
                     .set_index_option(IndexRecordOption::WithFreqsAndPositions)
             )
             .set_stored();
@@ -48,17 +50,22 @@ impl SearchIndex {
         let filename_field = schema_builder.add_text_field("filename", text_opts);
         let schema = schema_builder.build();
 
-        // Assurons-nous que le dossier d'index existe
-        // Si le dossier n'existe pas, on le crée
         std::fs::create_dir_all(index_dir)
             .context("Impossible de créer le dossier d'index")?;
 
-        // Tentons de créer un nouvel index
-        // Si un index existe déjà (erreur AlreadyExists), on l'ouvre
-        // Cette approche permet de gérer à la fois les créations et réouvertures
         let index = Index::create_in_dir(index_dir, schema.clone())
             .or_else(|_| Index::open_in_dir(index_dir))
             .context("Impossible de créer/ouvrir l'index Tantivy")?;
+
+        // Enregistrer le tokenizer n-gram
+        // Min=2, Max=4 pour capturer "Da", "Dat", "Data"
+        let ngram_tokenizer = TextAnalyzer::builder(
+            NgramTokenizer::new(2, 4, false).unwrap()
+        )
+        .filter(LowerCaser)
+        .build();
+
+        index.tokenizers().register("ngram3", ngram_tokenizer);
 
         Ok(Self {
             index,
@@ -115,16 +122,9 @@ impl SearchIndex {
         Ok(searcher.num_docs() as usize)
     }
 
-    // Recherche des fichiers dans l'index en fonction d'une requête textuelle
-    //
-    // Cette méthode:
-    // 1. Parse la requête utilisateur (ex: "document pdf")
-    // 2. Exécute la recherche sur le champ filename
-    // 3. Retourne les meilleurs résultats avec leurs scores
-    //
-    // Paramètres:
-    // - query_str: Texte de recherche saisi par l'utilisateur
-    // - limit: Nombre maximum de résultats à retourner
+    // Recherche fuzzy avec n-grams
+    // Trouve les fichiers même avec substring partiel
+    // Ex: "data" trouve "DataOps.pdf", "metadata.txt", "database.db"
     pub fn search(&self, query_str: &str, limit: usize) -> Result<Vec<SearchResult>> {
         // Ouvre un reader sur l'index
         // Le reader permet de rechercher dans l'index de manière thread-safe

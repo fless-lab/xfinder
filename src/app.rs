@@ -18,6 +18,7 @@ pub struct XFinderApp {
     pub error_message: Option<String>,
     pub preview_file_path: Option<String>,
     pub max_files_to_index: usize,
+    pub results_display_limit: usize,
 }
 
 #[derive(Default)]
@@ -51,7 +52,8 @@ impl Default for XFinderApp {
             indexing_in_progress: false,
             error_message: None,
             preview_file_path: None,
-            max_files_to_index: 10000, // Défaut: 10k fichiers
+            max_files_to_index: 10000,
+            results_display_limit: 50, // Affiche 50 résultats au départ
         }
     }
 }
@@ -166,9 +168,11 @@ impl XFinderApp {
         }
 
         if let Some(ref index) = self.search_index {
-            match index.search(&self.search_query, 50) {
+            // Cherche jusqu'à 10000 résultats pour infinite scroll
+            match index.search(&self.search_query, 10000) {
                 Ok(results) => {
                     self.search_results = results;
+                    self.results_display_limit = 50; // Reset à 50
                     self.error_message = None;
                 }
                 Err(e) => {
@@ -180,6 +184,10 @@ impl XFinderApp {
             self.error_message =
                 Some("Index non charge. Lancez une indexation d'abord.".to_string());
         }
+    }
+
+    pub fn load_more_results(&mut self) {
+        self.results_display_limit += 50;
     }
 }
 

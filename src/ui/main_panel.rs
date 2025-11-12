@@ -42,14 +42,20 @@ pub fn render_main_ui(ctx: &egui::Context, app: &mut XFinderApp) {
         ui.add_space(5.0);
 
         // Résultats de recherche
+        let total_results = app.search_results.len();
+        let displayed = app.results_display_limit.min(total_results);
+
         ui.label(format!(
-            "Resultats: {} fichier(s) trouve(s)",
-            app.search_results.len()
+            "Resultats: {} trouve(s) - Affichage: {}/{}",
+            total_results, displayed, total_results
         ));
         ui.add_space(5.0);
 
         egui::ScrollArea::vertical().show(ui, |ui| {
-            for (idx, result) in app.search_results.iter().enumerate() {
+            // N'afficher que jusqu'à la limite
+            for (idx, result) in app.search_results.iter()
+                .take(app.results_display_limit)
+                .enumerate() {
                 ui.group(|ui| {
                     ui.horizontal(|ui| {
                         ui.label(format!("#{}", idx + 1));
@@ -100,6 +106,16 @@ pub fn render_main_ui(ctx: &egui::Context, app: &mut XFinderApp) {
 
             if app.search_results.is_empty() && !app.search_query.is_empty() {
                 ui.label("Aucun resultat. Lancez une indexation d'abord.");
+            }
+
+            // Bouton "Charger plus" si il y a encore des résultats
+            if displayed < total_results {
+                ui.add_space(10.0);
+                ui.separator();
+                if ui.button(format!("Charger {} resultats supplementaires...",
+                    (total_results - displayed).min(50))).clicked() {
+                    app.load_more_results();
+                }
             }
         });
     });
