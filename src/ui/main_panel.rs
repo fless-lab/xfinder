@@ -57,7 +57,41 @@ pub fn render_main_ui(ctx: &egui::Context, app: &mut XFinderApp) {
                         ui.vertical(|ui| {
                             ui.label(format!("Fichier: {}", result.filename));
                             ui.label(format!("Chemin: {}", result.path));
+
+                            // Métadonnées: taille, dates
+                            let size_kb = result.size_bytes as f64 / 1024.0;
+                            let size_str = if size_kb > 1024.0 {
+                                format!("{:.2} MB", size_kb / 1024.0)
+                            } else {
+                                format!("{:.2} KB", size_kb)
+                            };
+                            ui.label(format!("Taille: {}", size_str));
+
+                            if let Some(ref created) = result.created {
+                                ui.label(format!("Cree: {}", created));
+                            }
+                            if let Some(ref modified) = result.modified {
+                                ui.label(format!("Modifie: {}", modified));
+                            }
+
                             ui.label(format!("Score: {:.2}", result.score));
+
+                            // Boutons d'action
+                            ui.horizontal(|ui| {
+                                if ui.button("Ouvrir").clicked() {
+                                    // Ouvrir le fichier avec l'app par défaut
+                                    let _ = opener::open(&result.path);
+                                }
+                                if ui.button("Previsualiser").clicked() {
+                                    app.preview_file_path = Some(result.path.clone());
+                                }
+                                if ui.button("Dossier").clicked() {
+                                    // Ouvrir le dossier contenant le fichier
+                                    if let Some(parent) = std::path::Path::new(&result.path).parent() {
+                                        let _ = opener::open(parent);
+                                    }
+                                }
+                            });
                         });
                     });
                 });

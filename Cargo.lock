@@ -629,6 +629,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "bstr"
+version = "1.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "63044e1ae8e69f3b5a92c736ca6269b8d12fa7efe39bf34ddb06d102cf0e2cab"
+dependencies = [
+ "memchr",
+ "regex-automata",
+ "serde",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -999,6 +1010,17 @@ name = "cursor-icon"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f27ae1dd37df86211c42e150270f82743308803d90a6f6e6651cd730d5e1732f"
+
+[[package]]
+name = "dbus"
+version = "0.9.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "190b6255e8ab55a7b568df5a883e9497edc3e4821c06396612048b430e5ad1e9"
+dependencies = [
+ "libc",
+ "libdbus-sys",
+ "windows-sys 0.59.0",
+]
 
 [[package]]
 name = "deranged"
@@ -2076,6 +2098,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2874a2af47a2325c2001a6e6fad9b16a53b802102b528163885171cf92b15976"
 
 [[package]]
+name = "libdbus-sys"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5cbe856efeb50e4681f010e9aaa2bf0a644e10139e54cde10fc83a307c23bd9f"
+dependencies = [
+ "cc",
+ "pkg-config",
+]
+
+[[package]]
 name = "libloading"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2365,6 +2397,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "normpath"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf23ab2b905654b4cb177e30b629937b3868311d4e1cba859f899c041046e69b"
+dependencies = [
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "num-conv"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2583,6 +2624,18 @@ name = "oneshot"
 version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4ce411919553d3f9fa53a0880544cda985a112117a0444d5ff1e870a893d6ea"
+
+[[package]]
+name = "opener"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d0812e5e4df08da354c851a3376fead46db31c2214f849d3de356d774d057681"
+dependencies = [
+ "bstr",
+ "dbus",
+ "normpath",
+ "windows-sys 0.59.0",
+]
 
 [[package]]
 name = "option-ext"
@@ -4800,6 +4853,7 @@ dependencies = [
  "dirs",
  "eframe",
  "egui",
+ "opener",
  "rfd",
  "rusqlite",
  "tantivy",

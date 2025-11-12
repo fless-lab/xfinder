@@ -5,7 +5,7 @@ use eframe::egui;
 use std::path::PathBuf;
 
 use crate::search::{FileScanner, SearchIndex, SearchResult};
-use crate::ui::{render_main_ui, render_side_panel, render_top_panel};
+use crate::ui::{render_main_ui, render_side_panel, render_top_panel, render_preview_panel};
 
 pub struct XFinderApp {
     pub search_query: String,
@@ -16,6 +16,7 @@ pub struct XFinderApp {
     pub index_status: IndexStatus,
     pub indexing_in_progress: bool,
     pub error_message: Option<String>,
+    pub preview_file_path: Option<String>,
 }
 
 #[derive(Default)]
@@ -47,6 +48,7 @@ impl Default for XFinderApp {
             index_status: IndexStatus::default(),
             indexing_in_progress: false,
             error_message: None,
+            preview_file_path: None,
         }
     }
 }
@@ -158,5 +160,6 @@ impl eframe::App for XFinderApp {
         render_top_panel(ctx, self);
         render_side_panel(ctx, self);
         render_main_ui(ctx, self);
+        render_preview_panel(ctx, self);
     }
 }

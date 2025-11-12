@@ -55,7 +55,7 @@ mod tests {
 
     #[test]
     fn test_scanner_creation() {
-        let scanner = FileScanner::new();
+        let _scanner = FileScanner::new();
         // Juste vérifier que ça compile
         assert!(true);
     }

@@ -132,8 +132,11 @@ impl SearchIndex {
             .search(&query, &TopDocs::with_limit(limit))
             .context("Erreur lors de la recherche")?;
 
-        // Convertissons les résultats Tantivy en notre structure SearchResult
+        // Convertir les résultats Tantivy en SearchResult
+        // On déduplique par chemin pour éviter les doublons
         let mut results = Vec::new();
+        let mut seen_paths = std::collections::HashSet::new();
+
         for (score, doc_address) in top_docs {
             let retrieved_doc: TantivyDocument = searcher.doc(doc_address)?;
             let path = retrieved_doc
@@ -146,6 +149,11 @@ impl SearchIndex {
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
+
+            // Skip si déjà vu
+            if !seen_paths.insert(path.clone()) {
+                continue;
+            }
 
             results.push(SearchResult::new(path, filename, score));
         }

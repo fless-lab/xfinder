@@ -11,7 +11,7 @@ mod tests {
         let app = XFinderApp::default();
 
         // Le scan path par défaut doit être un chemin valide
-        let path = PathBuf::from(&app.scan_path);
+        let _path = PathBuf::from(&app.scan_path);
         assert!(!app.scan_path.is_empty());
         // On ne teste pas exists() car le dossier peut ne pas exister
     }
@@ -48,5 +48,6 @@ mod tests {
         assert!(app.search_index.is_none());
         assert!(!app.indexing_in_progress);
         assert_eq!(app.index_status.file_count, 0);
+        assert!(app.preview_file_path.is_none());
     }
 }
