@@ -1,70 +1,74 @@
-# xfinder - Jarvis Administratif
+# xfinder
 
-> **Assistant de recherche intelligent pour administrations Windows**
-> Recherche ultrarapide + IA conversationnelle + Emails intégrés
+**Advanced file search and retrieval system for Windows administrative environments**
 
----
+## Overview
 
-## Vision
+xfinder is a high-performance desktop search application designed for administrative users who need to locate files and information quickly across large document repositories. Built with Rust and native UI technologies, it provides enterprise-grade search capabilities in a lightweight package.
 
-xfinder permet aux agents administratifs de retrouver **instantanément** fichiers et emails via :
-- 🔍 **Recherche ultrarapide** : Trouve par nom en <100ms
-- 🧠 **IA sémantique** : Comprend "budgets formation 2024"
-- 💬 **Mode Assist Me** : Répond à vos questions avec sources vérifiables
-- 📧 **Emails intégrés** : Recherche unifiée fichiers + Outlook/Thunderbird
-- 👁️ **OCR intelligent** : Indexe PDF scannés et images
-- ⚡ **Temps réel** : Indexation automatique des nouveaux fichiers
+## Key Features
 
----
-
-## Fonctionnalités principales
-
-### 1. Recherche rapide
-- Recherche instantanée par nom (<100ms pour 100k fichiers)
-- Fuzzy matching : "cntrat dpon" trouve "Contrat Dupont"
-- Filtres avancés : extension, date, taille, dossier
-- Raccourci global : `Ctrl+Shift+F`
-
-### 2. Recherche intelligente (IA)
-- Recherche sémantique : comprend le sens, pas juste les mots
-- Mode "Assist Me" : posez des questions en français
-- Sources vérifiables : chaque réponse cite les fichiers/emails
-- Index ultra-compact : LEANN (97% plus léger que solutions classiques)
-
-### 3. OCR automatique
-- Détection auto PDF scannés
-- Extraction texte images (JPG, PNG, TIFF)
-- Configurable par dossier/type fichier
-- Support français + anglais
-
-### 4. Emails
-- Indexation Outlook (PST/MAPI)
-- Indexation Thunderbird (MBOX)
-- Support IMAP/Exchange
-- Recherche pièces jointes
-
-### 5. Surveillance temps réel
-- Watchdog automatique : détecte nouveaux fichiers
-- Mise à jour index en temps réel
-- Gère déplacements/renommages intelligemment
+- **Fast Indexing**: Full-text search engine powered by Tantivy with sub-100ms query response time
+- **Real-time Monitoring**: Automatic file system watching and index updates
+- **Semantic Search**: AI-powered search understanding natural language queries
+- **Email Integration**: Unified search across Outlook PST files, Thunderbird MBOX, and IMAP accounts
+- **OCR Support**: Automatic text extraction from scanned PDFs and images (Tesseract 5)
+- **Conversational Interface**: "Assist Me" mode providing contextual answers with verifiable sources
 
 ---
 
-## Stack technique
+## Core Capabilities
 
-| Composant | Technologie | Pourquoi |
-|-----------|-------------|----------|
-| **Application** | Tauri 2.0 | Léger (10MB), sécurisé, rapide |
-| **Backend** | Rust | Performance, sécurité mémoire |
-| **Frontend** | React + TypeScript | Interface moderne, maintenable |
-| **Recherche rapide** | Tantivy | Lucene-like en Rust |
-| **Recherche contenu** | SQLite FTS5 | Full-text natif, simple |
-| **IA/Embeddings** | LEANN + all-MiniLM-L6-v2 | Index compact, rapide |
-| **OCR** | Tesseract 5 | Référence industrie, offline |
-| **Watchdog** | notify-rs | Surveillance filesystem |
-| **Email parsing** | mailparse + libpff | PST/MBOX support |
+### File Search
+- Instant filename search with sub-100ms response for 100k+ files
+- Fuzzy matching algorithm for typo-tolerant queries
+- Advanced filtering by extension, date, size, and directory
+- Global keyboard shortcut access (Ctrl+Shift+F)
 
-**Taille totale :** ~120MB (app 10MB + OCR 30MB + modèle IA 80MB)
+### Content Indexing
+- Full-text search across document contents (SQLite FTS5)
+- Automatic detection and indexing of scanned PDFs
+- OCR text extraction from images (JPEG, PNG, TIFF)
+- Configurable by directory and file type
+- Multi-language support (French and English priority)
+
+### Semantic Search
+- Natural language query understanding
+- Vector-based similarity search using compact embeddings (LEANN)
+- Conversational "Assist Me" mode with source attribution
+- 97% smaller index size compared to traditional vector databases
+
+### Email Search
+- Outlook PST/MAPI integration
+- Thunderbird MBOX parsing
+- IMAP and Exchange server support
+- Attachment indexing and search
+
+### Real-time Updates
+- File system monitoring via watchdog
+- Automatic index updates on file creation, modification, and deletion
+- Intelligent handling of file moves and renames
+- Scheduled indexing with configurable intervals
+
+---
+
+## Technology Stack
+
+| Component | Technology | Rationale |
+|-----------|------------|-----------|
+| **Language** | Rust | Memory safety, performance, concurrency |
+| **UI Framework** | egui | Native, lightweight, GPU-accelerated |
+| **Windowing** | winit | Cross-platform window management |
+| **Rendering** | wgpu | Hardware-accelerated graphics |
+| **Search Engine** | Tantivy | Lucene-like full-text search in Rust |
+| **Database** | SQLite with FTS5 | Embedded, ACID-compliant, full-text capable |
+| **Embeddings** | all-MiniLM-L6-v2 | Compact (80MB), multilingual, 384 dimensions |
+| **Vector Database** | LEANN | Ultra-compact indices (97% size reduction) |
+| **OCR** | Tesseract 5 | Industry standard, offline, multi-language |
+| **File Monitoring** | notify-rs | Cross-platform filesystem events |
+| **Email Parsing** | mailparse, libpff | PST and MBOX format support |
+
+**Binary Size**: ~8MB base + 110MB (OCR + ML models) = 118MB total
 
 ---
 
@@ -72,79 +76,82 @@ xfinder permet aux agents administratifs de retrouver **instantanément** fichie
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                   FRONTEND (React)                      │
-│  Interface recherche + Configuration + Assist Me        │
-└────────────────────┬────────────────────────────────────┘
-                     │ IPC Tauri
-┌────────────────────▼────────────────────────────────────┐
-│              BACKEND (Rust)                             │
-│                                                          │
-│  Watchdog → Indexer → Content Extractor (OCR)          │
-│  Search Engine ← Tantivy + SQLite FTS5 + LEANN         │
-│  Email Parser → Outlook/Thunderbird/IMAP                │
+│                 UI Layer (egui)                         │
+│    Search Interface | Configuration | Assist Me Mode    │
 └────────────────────┬────────────────────────────────────┘
                      │
 ┌────────────────────▼────────────────────────────────────┐
-│              STORAGE (local)                            │
-│  index.db (SQLite) + vectors.db (LEANN) + content.db   │
+│              Core Application (Rust)                    │
+│                                                          │
+│  File System Watchdog → Indexer → Content Extractor    │
+│  Search Engine: Tantivy + SQLite FTS5 + LEANN          │
+│  Email Parser: PST/MBOX/IMAP                            │
+└────────────────────┬────────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────────┐
+│              Storage Layer                              │
+│  tantivy_index/ | metadata.db (SQLite) | vectors.leann │
 └─────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Roadmap
+## Development Roadmap
 
-### ✅ Phase 0 : Documentation (Actuelle - Semaine 1-2)
-- [x] Spécifications produit (PRD)
-- [x] Architecture technique
-- [x] Décisions techniques
-- [x] Schémas API/DB
-- [x] Plan de tests
+### Phase 0: Foundation (Weeks 1-2) ✅
+- [x] Product requirements documentation
+- [x] Technical architecture design
+- [x] Technology stack decisions
+- [x] Database schema design
+- [x] Testing strategy
+- [x] Security model
+- [x] Project structure setup
+- [x] Hello World egui application
 
-### 🚧 Phase 1 : MVP Indexation (Semaines 3-8)
-- [ ] Setup Tauri + React
-- [ ] Watchdog filesystem
-- [ ] Indexation fichiers (métadonnées + contenu)
-- [ ] Recherche rapide (Tantivy)
-- [ ] Interface basique
-- [ ] Configuration dossiers/exclusions
+### Phase 1: Core Search (Weeks 3-8) 🔨
+- [ ] Tantivy index implementation
+- [ ] SQLite metadata storage
+- [ ] File system watchdog
+- [ ] Basic search UI
+- [ ] Configuration system
+- [ ] Directory inclusion/exclusion
 
-**Livrable :** Recherche fichiers fonctionnelle
+**Deliverable**: Functional file search application
 
-### 📅 Phase 2 : OCR + Contenu (Semaines 9-12)
-- [ ] Intégration Tesseract
-- [ ] Détection auto PDF scannés
-- [ ] Config OCR par dossier
-- [ ] Recherche full-text (SQLite FTS5)
+### Phase 2: Content Processing (Weeks 9-12)
+- [ ] Tesseract OCR integration
+- [ ] Scanned PDF detection
+- [ ] Full-text search (SQLite FTS5)
+- [ ] Per-directory OCR configuration
 
-**Livrable :** Recherche dans contenu + OCR
+**Deliverable**: Content-aware search with OCR
 
-### 📅 Phase 3 : IA Assist Me (Semaines 13-17)
-- [ ] POC LEANN (benchmark vs FAISS)
-- [ ] Génération embeddings
-- [ ] Recherche sémantique
-- [ ] Interface conversationnelle
-- [ ] Citations sources
+### Phase 3: Semantic Search (Weeks 13-17)
+- [ ] LEANN proof-of-concept vs FAISS
+- [ ] Embedding generation pipeline
+- [ ] Vector similarity search
+- [ ] Conversational UI ("Assist Me" mode)
+- [ ] Source attribution system
 
-**Livrable :** Mode questions/réponses intelligent
+**Deliverable**: AI-powered semantic search
 
-### 📅 Phase 4 : Emails (Semaines 18-22)
-- [ ] Parser Outlook PST/MAPI
-- [ ] Parser Thunderbird MBOX
-- [ ] Support IMAP
-- [ ] Indexation pièces jointes
-- [ ] Recherche unifiée
+### Phase 4: Email Integration (Weeks 18-22)
+- [ ] PST/MAPI parser (Outlook)
+- [ ] MBOX parser (Thunderbird)
+- [ ] IMAP connector
+- [ ] Attachment indexing
+- [ ] Unified search interface
 
-**Livrable :** Recherche fichiers + emails
+**Deliverable**: Comprehensive file and email search
 
-### 📅 Phase 5 : Production (Semaines 23-25)
-- [ ] Optimisation performance
-- [ ] Installateur MSI
-- [ ] Auto-update
-- [ ] Documentation utilisateur
-- [ ] Tests beta
+### Phase 5: Production Release (Weeks 23-25)
+- [ ] Performance optimization
+- [ ] MSI installer package
+- [ ] Auto-update mechanism
+- [ ] User documentation
+- [ ] Beta testing program
 
-**Livrable :** Version production déployable
+**Deliverable**: Production-ready application
 
 ---
 
@@ -152,82 +159,108 @@ xfinder permet aux agents administratifs de retrouver **instantanément** fichie
 
 | Document | Description |
 |----------|-------------|
-| [01_PRD_Product_Requirements.md](docs/01_PRD_Product_Requirements.md) | Spécifications produit complètes |
-| [02_Architecture_Technique.md](docs/02_Architecture_Technique.md) | Architecture détaillée + code samples |
-| [03_Decisions_Techniques.md](docs/03_Decisions_Techniques.md) | Choix techno et justifications |
-| [04_API_Schemas.md](docs/04_API_Schemas.md) | API Tauri + schémas DB |
-| [05_Plan_Tests_Metriques.md](docs/05_Plan_Tests_Metriques.md) | Stratégie tests + benchmarks |
+| [00_INDEX.md](docs/00_INDEX.md) | Documentation navigation guide |
+| [01_PRD_Product_Requirements.md](docs/01_PRD_Product_Requirements.md) | Complete product requirements specification |
+| [03_Decisions_Techniques.md](docs/03_Decisions_Techniques.md) | Technology choices and rationale |
+| [05_Plan_Tests_Metriques.md](docs/05_Plan_Tests_Metriques.md) | Testing strategy and performance benchmarks |
+| [06_Backlog_Complet.md](docs/06_Backlog_Complet.md) | Detailed task backlog (325 tasks) |
+| [07_Architecture_Securite.md](docs/07_Architecture_Securite.md) | Security architecture and threat model |
+| [08_Architecture_Finale_egui.md](docs/08_Architecture_Finale_egui.md) | **Final architecture reference** |
+| [QUICKSTART.md](QUICKSTART.md) | Developer quick start guide |
+| [GIT_WORKFLOW.md](GIT_WORKFLOW.md) | Git commit guidelines |
+| [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) | Step-by-step implementation tasks |
+| [TESTING.md](TESTING.md) | Manual testing procedures
 
 ---
 
-## Quick Start (futur)
+## Getting Started
+
+### For Developers
+
+```bash
+# Prerequisites
+rustc >= 1.70
+cargo >= 1.70
+
+# Clone and build
+git clone https://github.com/your-org/xfinder.git
+cd xfinder
+cargo build --release
+
+# Run tests
+cargo test
+
+# Launch application
+cargo run
+```
+
+See [QUICKSTART.md](QUICKSTART.md) for detailed setup instructions.
+
+### For End Users (Future)
 
 ```bash
 # Installation
-Download xfinder-setup.msi
-Double-click → Install
+Download xfinder-setup.msi from releases
+Run installer and follow prompts
 
-# Première utilisation
-1. Lance xfinder
-2. Sélectionne dossiers à surveiller
-3. Démarre indexation
-4. Recherche ! (Ctrl+Shift+F)
+# First Use
+1. Launch xfinder
+2. Select directories to monitor
+3. Start indexing
+4. Search using Ctrl+Shift+F
 ```
 
 ---
 
-## Performances cibles
+## Performance Targets
 
-| Métrique | Objectif |
-|----------|----------|
-| Recherche (100k fichiers) | <100ms |
-| Indexation | >1000 fichiers/min |
-| OCR page A4 | <5s |
-| Recherche sémantique | <3s |
-| Taille index | <5% corpus |
-| Mémoire idle | <500MB |
-| Démarrage app | <3s |
-
----
-
-## Questions ouvertes
-
-### Fonctionnelles
-1. **Recherche réseau** : Surveiller serveurs partagés `\\Serveur\` ?
-2. **Langues** : Multilingue ou français prioritaire ?
-3. **LLM** : Mode Assist Me avec génération ou juste citations ?
-
-### Techniques
-4. **LEANN** : Valider performance vs FAISS (POC semaine 3-4)
-5. **PST parsing** : MAPI ou libpff en priorité ?
-6. **GPU** : Support CUDA pour embeddings ? (+500MB mais 10x vitesse)
-
-### Business
-7. **Pricing** : Gratuit admin publiques, payant privé ?
-8. **Support** : Communauté ou support dédié ?
+| Metric | Target | Measurement |
+|--------|--------|-------------|
+| Search query (100k files) | <100ms | P95 latency |
+| Indexing throughput | >1000 files/min | Average on SSD |
+| OCR processing (A4 page) | <5s | Tesseract standard quality |
+| Semantic search | <3s | Including embedding generation |
+| Index size overhead | <5% of corpus | Metadata + vectors |
+| Memory footprint (idle) | <100MB | Application only |
+| Cold start time | <500ms | To main window display |
 
 ---
 
-## Contribution
+## Design Decisions
 
-Projet en phase de documentation. Code à venir Phase 1 (semaine 3).
+### Language Priority
+Multi-language support with French and English as primary targets. OCR and semantic search models selected for optimal French performance.
+
+### Vector Database
+LEANN selected for 97% index size reduction compared to FAISS. Proof-of-concept validation scheduled for Week 13-14.
+
+### Email Parsing Strategy
+- Primary: Windows MAPI API (requires Outlook installation)
+- Fallback: libpff library for direct PST parsing
+- Thunderbird: mailparse crate for MBOX files
+
+### Network Drives
+UNC path monitoring (`\\Server\Share`) supported via same watchdog mechanism as local drives.
+
+### GPU Acceleration
+Optional CUDA support for embedding generation provides 10x speed improvement at cost of 500MB additional dependencies. Disabled by default.
 
 ---
 
-## Licence
+## Contributing
 
-À définir (probablement GPL-3.0 ou Apache-2.0)
+Project currently in active development. Contributions welcome after Phase 1 MVP completion.
+
+## License
+
+To be determined (likely GPL-3.0 or Apache-2.0)
+
+## Project Status
+
+**Current Phase**: Phase 1 - Core Search Implementation (Week 1)
+**Last Updated**: 2025-11-12
+**Version**: 0.1.0-alpha
 
 ---
 
-## Contact
-
-Projet pour administrations françaises.
-
-**Status :** 📋 Phase documentation (semaine 1-2)
-**Prochaine étape :** POC LEANN + Setup Tauri (semaine 3)
-
----
-
-**Généré le :** 2025-11-12
-**Version doc :** 1.0
+Built with Rust for performance, security, and reliability.
