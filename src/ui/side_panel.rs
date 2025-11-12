@@ -45,6 +45,19 @@ pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
             ui.separator();
             ui.add_space(10.0);
 
+            // Option "Scan tout le PC"
+            if ui.checkbox(&mut app.scan_entire_pc, "Scan tout le PC (tous les lecteurs)").clicked() {
+                if app.scan_entire_pc {
+                    app.enable_scan_entire_pc();
+                } else {
+                    app.disable_scan_entire_pc();
+                }
+            }
+
+            ui.add_space(5.0);
+            ui.separator();
+            ui.add_space(5.0);
+
             ui.label("Dossiers a indexer:");
 
             // Afficher la liste des dossiers
@@ -52,7 +65,7 @@ pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
             for (idx, path) in app.scan_paths.iter().enumerate() {
                 ui.horizontal(|ui| {
                     ui.label(format!("{}. {}", idx + 1, path));
-                    if ui.button("X").clicked() {
+                    if !app.scan_entire_pc && ui.button("X").clicked() {
                         to_remove = Some(idx);
                     }
                 });
@@ -64,39 +77,42 @@ pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
 
             ui.add_space(5.0);
 
-            // Ajouter un nouveau dossier
-            if ui.button("+ Ajouter dossier").clicked() {
-                if let Some(path) = rfd::FileDialog::new().pick_folder() {
-                    app.add_scan_path(path.to_string_lossy().to_string());
+            // Désactiver les contrôles si "Scan tout le PC" est activé
+            ui.add_enabled_ui(!app.scan_entire_pc, |ui| {
+                // Ajouter un nouveau dossier
+                if ui.button("+ Ajouter dossier").clicked() {
+                    if let Some(path) = rfd::FileDialog::new().pick_folder() {
+                        app.add_scan_path(path.to_string_lossy().to_string());
+                    }
                 }
-            }
 
-            ui.add_space(5.0);
+                ui.add_space(5.0);
 
-            // Boutons rapides pour ajouter des dossiers communs
-            ui.label("Raccourcis:");
-            ui.horizontal_wrapped(|ui| {
-                if ui.button("C:\\").clicked() {
-                    app.add_scan_path("C:\\".to_string());
-                }
-                if ui.button("D:\\").clicked() {
-                    app.add_scan_path("D:\\".to_string());
-                }
-                if ui.button("Downloads").clicked() {
-                    if let Some(downloads) = dirs::download_dir() {
-                        app.add_scan_path(downloads.to_string_lossy().to_string());
+                // Boutons rapides pour ajouter des dossiers communs
+                ui.label("Raccourcis:");
+                ui.horizontal_wrapped(|ui| {
+                    if ui.button("C:\\").clicked() {
+                        app.add_scan_path("C:\\".to_string());
                     }
-                }
-                if ui.button("Documents").clicked() {
-                    if let Some(docs) = dirs::document_dir() {
-                        app.add_scan_path(docs.to_string_lossy().to_string());
+                    if ui.button("D:\\").clicked() {
+                        app.add_scan_path("D:\\".to_string());
                     }
-                }
-                if ui.button("Bureau").clicked() {
-                    if let Some(desktop) = dirs::desktop_dir() {
-                        app.add_scan_path(desktop.to_string_lossy().to_string());
+                    if ui.button("Downloads").clicked() {
+                        if let Some(downloads) = dirs::download_dir() {
+                            app.add_scan_path(downloads.to_string_lossy().to_string());
+                        }
                     }
-                }
+                    if ui.button("Documents").clicked() {
+                        if let Some(docs) = dirs::document_dir() {
+                            app.add_scan_path(docs.to_string_lossy().to_string());
+                        }
+                    }
+                    if ui.button("Bureau").clicked() {
+                        if let Some(desktop) = dirs::desktop_dir() {
+                            app.add_scan_path(desktop.to_string_lossy().to_string());
+                        }
+                    }
+                });
             });
 
             ui.add_space(10.0);
@@ -106,11 +122,11 @@ pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
             // Configuration de la limite
             ui.label("Limite de fichiers:");
             ui.horizontal(|ui| {
-                ui.add(egui::Slider::new(&mut app.max_files_to_index, 100..=100000)
+                ui.add(egui::Slider::new(&mut app.max_files_to_index, 1000..=5000000)
                     .logarithmic(true)
                     .text("fichiers"));
             });
-            ui.label(format!("(Actuellement: {} fichiers max)", app.max_files_to_index));
+            ui.label(format!("(Max: {} fichiers)", app.max_files_to_index));
 
             ui.add_space(10.0);
             ui.separator();

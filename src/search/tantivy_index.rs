@@ -58,9 +58,10 @@ impl SearchIndex {
             .context("Impossible de créer/ouvrir l'index Tantivy")?;
 
         // Enregistrer le tokenizer n-gram
-        // Min=2, Max=4 pour capturer "Da", "Dat", "Data"
+        // Min=1, Max=5 pour capturer même les recherches courtes comme ".m"
+        // Ex: ".md" → ".", "m", "d", ".m", "md", ".md"
         let ngram_tokenizer = TextAnalyzer::builder(
-            NgramTokenizer::new(2, 4, false).unwrap()
+            NgramTokenizer::new(1, 5, false).unwrap()
         )
         .filter(LowerCaser)
         .build();
@@ -163,12 +164,9 @@ impl SearchIndex {
         Ok(())
     }
 
-    // Recherche fuzzy avec n-grams
-    // Trouve les fichiers même avec substring partiel
-    // Ex: "data" trouve "DataOps.pdf", "metadata.txt", "database.db"
+    // Recherche ultra-flexible: marche avec n'importe quel fragment
+    // Ex: ".m" trouve ".md", "log" trouve "CHANGELOG.md", "ops" trouve "DataOps.pdf"
     pub fn search(&self, query_str: &str, limit: usize) -> Result<Vec<SearchResult>> {
-        // Ouvre un reader sur l'index
-        // Le reader permet de rechercher dans l'index de manière thread-safe
         let reader = self
             .index
             .reader()
@@ -176,11 +174,14 @@ impl SearchIndex {
 
         let searcher = reader.searcher();
 
-        // Configure le parser de requête pour chercher dans le champ filename
-        // Tantivy supporte les requêtes complexes (AND, OR, phrases, etc.)
-        let query_parser = QueryParser::for_index(&self.index, vec![self.filename_field]);
+        // Nettoyer et préparer la requête
+        let clean_query = query_str.trim().to_lowercase();
+
+        // Avec n-grams 1-5, la recherche est déjà très flexible
+        // Pas besoin de wildcards, le tokenizer s'en occupe
+        let query_parser = QueryParser::for_index(&self.index, vec![self.filename_field, self.path_field]);
         let query = query_parser
-            .parse_query(query_str)
+            .parse_query(&clean_query)
             .context("Impossible de parser la requête")?;
 
         // Lance la recherche et récupère les N meilleurs documents

@@ -22,6 +22,7 @@ pub struct XFinderApp {
     pub results_display_limit: usize,
     pub watchdog_enabled: bool,
     pub watchdog_update_count: usize,
+    pub scan_entire_pc: bool,
 }
 
 #[derive(Default)]
@@ -58,10 +59,11 @@ impl Default for XFinderApp {
             indexing_in_progress: false,
             error_message: None,
             preview_file_path: None,
-            max_files_to_index: 10000,
+            max_files_to_index: 100000,
             results_display_limit: 50,
             watchdog_enabled: false,
             watchdog_update_count: 0,
+            scan_entire_pc: false,
         }
     }
 }
@@ -187,6 +189,33 @@ impl XFinderApp {
     pub fn remove_scan_path(&mut self, index: usize) {
         if index < self.scan_paths.len() {
             self.scan_paths.remove(index);
+        }
+    }
+
+    // Activer le scan de tout le PC (tous les lecteurs)
+    pub fn enable_scan_entire_pc(&mut self) {
+        self.scan_entire_pc = true;
+        self.scan_paths.clear();
+
+        // Détecter tous les lecteurs Windows (A: à Z:)
+        for letter in b'A'..=b'Z' {
+            let drive = format!("{}:\\", letter as char);
+            let path = PathBuf::from(&drive);
+            if path.exists() {
+                self.scan_paths.push(drive);
+            }
+        }
+
+        self.error_message = Some(format!("Scan PC complet: {} lecteurs detectes", self.scan_paths.len()));
+    }
+
+    pub fn disable_scan_entire_pc(&mut self) {
+        self.scan_entire_pc = false;
+        self.scan_paths.clear();
+
+        // Remettre le dossier par défaut
+        if let Some(downloads) = dirs::download_dir() {
+            self.scan_paths.push(downloads.to_string_lossy().to_string());
         }
     }
 
