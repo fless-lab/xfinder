@@ -21,6 +21,17 @@
 - **PAS d'émojis dans le code** (sauf UI si vraiment nécessaire)
 - **Code professionnel et propre**
 - **Commentaires en français** (code en anglais standard)
+- **Commentaires conversationnels** : Écrire comme si on expliquait au prochain dev
+  - ❌ `/// Créer un nouvel index`
+  - ✅ `// Initialise un nouvel index Tantivy ou ouvre un index existant...`
+  - Expliquer le "pourquoi", pas juste le "quoi"
+  - Ajouter des exemples quand utile
+
+### 3. Architecture
+- **Principe Single Responsibility** : Un fichier = une responsabilité
+- **Modules séparés** : app/, ui/, search/, database/, etc.
+- **Pas de fichiers géants** : Max ~300 lignes par fichier
+- **Refactoriser** dès qu'un fichier devient trop long
 
 ### 3. Documentation
 - **Cohérence critique** : Si modification importante, mettre à jour tous les docs concernés
@@ -102,18 +113,26 @@ git log --oneline -10   # Historique
 ```
 xfinder/
 ├── .claude/
-│   └── instructions.md    ← CE FICHIER
+│   └── instructions.md        ← CE FICHIER (contexte projet)
 ├── .git/
-├── docs/                  ← Documentation complète (9 fichiers)
+├── docs/                      ← Documentation complète (9 fichiers)
 │   └── 08_Architecture_Finale_egui.md  ← RÉFÉRENCE
 ├── src/
-│   └── main.rs            ← Hello World egui + tests
-├── target/                ← Build artifacts (gitignored)
-├── Cargo.toml             ← Dépendances
-├── Cargo.lock             ← Lock versions
-├── .gitignore
-├── IMPLEMENTATION_PLAN.md ← PLAN ÉTAPE PAR ÉTAPE
-├── QUICKSTART.md
+│   ├── main.rs                ← Point d'entrée (30 lignes)
+│   ├── app.rs                 ← État application + logique métier
+│   ├── search/                ← Module recherche Tantivy
+│   │   ├── mod.rs
+│   │   └── tantivy_index.rs   ← Indexation + recherche
+│   └── ui/                    ← Module interface utilisateur
+│       ├── mod.rs
+│       ├── top_panel.rs       ← Barre supérieure
+│       ├── side_panel.rs      ← Panneau statut index
+│       └── main_panel.rs      ← Recherche + résultats
+├── target/                    ← Build artifacts (gitignored)
+├── Cargo.toml                 ← Dépendances
+├── .xfinder_index/            ← Index Tantivy (gitignored)
+├── IMPLEMENTATION_PLAN.md     ← PLAN ÉTAPE PAR ÉTAPE
+├── TESTING.md                 ← Guide tests manuels
 ├── GIT_WORKFLOW.md
 └── README.md
 ```
@@ -196,22 +215,34 @@ git commit -m "test: add search index creation test"
 
 ## Notes de session
 
-### 2025-11-12 - Setup initial + Semaine 1 début
-- Créé Cargo.toml avec dépendances minimales
-- Créé src/main.rs avec Hello World egui
-- Ajouté tests TDD basiques
-- **Module search/tantivy_index.rs** : Indexation + recherche Tantivy
-- **UI complète** : Indexation manuelle, statut index, recherche
-- Commits effectués :
+### 2025-11-12 - Setup initial + Semaine 1
+- ✅ Créé Cargo.toml avec dépendances minimales
+- ✅ Créé src/main.rs avec Hello World egui
+- ✅ Ajouté tests TDD basiques
+- ✅ **Module search/tantivy_index.rs** : Indexation + recherche Tantivy
+- ✅ **UI complète** : Indexation manuelle, statut index, recherche
+- ✅ **Refactorisation** : Séparation app/, ui/, search/ (Single Responsibility)
+- ✅ **Commentaires améliorés** : Style conversationnel et explicite
+- **Commits effectués (8 total)** :
   - `docs: finalisation documentation complète`
   - `feat: hello world egui avec tests TDD`
   - `docs: update README to professional style`
   - `feat: add Tantivy search module with tests`
   - `feat: integrate Tantivy search with manual indexing UI`
+  - `docs: update OCR strategy to PaddleOCR primary`
+  - `refactor: split code into modules (app, ui, search)`
+  - `docs: improve code comments to be more conversational`
+
+### État actuel
+- **Phase** : Semaine 1 - Tantivy search en cours
+- **Fonctionnel** : UI + indexation 3 fichiers test + recherche
+- **Tests** : 5 tests passent tous ✅
+- **Architecture** : Modulaire et propre
 
 ### Prochaine session
 → **Tester l'app** : `cargo run` et cliquer "Lancer Indexation"
-→ Implémenter indexation dossier réel (remplacer fichiers test)
+→ Implémenter indexation dossier réel avec walkdir (remplacer fichiers test)
+→ Ajouter sélection dossier dans UI
 → Architecture OCR avec pattern Strategy (PaddleOCR primary)
 
 ---
