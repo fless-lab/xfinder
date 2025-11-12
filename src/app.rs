@@ -3,9 +3,19 @@
 
 use eframe::egui;
 use std::path::PathBuf;
+use std::sync::Arc;
+use crossbeam_channel::{unbounded, Receiver, Sender};
 
 use crate::search::{FileScanner, SearchIndex, SearchResult, FileWatcher};
 use crate::ui::{render_main_ui, render_side_panel, render_top_panel, render_preview_panel};
+
+// Message de progression de l'indexation
+#[derive(Debug, Clone)]
+pub struct IndexProgress {
+    pub indexed_count: usize,
+    pub total_files: usize,
+    pub current_path: String,
+}
 
 pub struct XFinderApp {
     pub search_query: String,
@@ -23,6 +33,7 @@ pub struct XFinderApp {
     pub watchdog_enabled: bool,
     pub watchdog_update_count: usize,
     pub scan_entire_pc: bool,
+    progress_rx: Option<Receiver<IndexProgress>>,
 }
 
 #[derive(Default)]
@@ -31,6 +42,8 @@ pub struct IndexStatus {
     pub file_count: usize,
     pub last_update: Option<String>,
     pub indexed_path: Option<String>,
+    pub current_indexed: usize,
+    pub total_to_index: usize,
 }
 
 impl Default for XFinderApp {
@@ -64,6 +77,7 @@ impl Default for XFinderApp {
             watchdog_enabled: false,
             watchdog_update_count: 0,
             scan_entire_pc: false,
+            progress_rx: None,
         }
     }
 }
@@ -82,88 +96,97 @@ impl XFinderApp {
         }
     }
 
-    // Lance une nouvelle indexation complète (efface l'ancien index)
+    // Lance une nouvelle indexation dans un thread séparé (pas de freeze UI)
     pub fn start_indexing(&mut self, clear_existing: bool) {
+        if self.indexing_in_progress {
+            return; // Déjà en cours
+        }
+
         self.indexing_in_progress = true;
         self.error_message = None;
+        self.index_status.current_indexed = 0;
+        self.index_status.total_to_index = 0;
 
         if self.search_index.is_none() {
             self.load_index();
         }
 
-        if let Some(ref index) = self.search_index {
-            // Vérifier que tous les chemins existent
-            for path_str in &self.scan_paths {
-                let path = PathBuf::from(path_str);
-                if !path.exists() {
-                    self.error_message = Some(format!("Dossier inexistant: {}", path_str));
-                    self.indexing_in_progress = false;
-                    return;
-                }
-            }
-
-            // Si demandé, effacer l'index existant
-            if clear_existing {
-                if let Err(e) = index.clear() {
-                    self.error_message = Some(format!("Erreur nettoyage index: {}", e));
-                    self.indexing_in_progress = false;
-                    return;
-                }
-            }
-
-            let scanner = FileScanner::new();
-            let mut total_indexed = 0;
-            let files_per_path = self.max_files_to_index / self.scan_paths.len().max(1);
-
-            match index.create_writer() {
-                Ok(mut writer) => {
-                    // Scanner chaque dossier
-                    for path_str in &self.scan_paths {
-                        let scan_path = PathBuf::from(path_str);
-
-                        match scanner.scan_directory(&scan_path, files_per_path) {
-                            Ok(files) => {
-                                for file in &files {
-                                    if index.add_file(&mut writer, &file.path, &file.filename).is_ok() {
-                                        total_indexed += 1;
-                                    }
-                                }
-                            }
-                            Err(e) => {
-                                self.error_message = Some(format!("Erreur scan {}: {}", path_str, e));
-                            }
-                        }
-                    }
-
-                    match writer.commit() {
-                        Ok(_) => {
-                            self.index_status.file_count = total_indexed;
-                            self.index_status.last_update = Some(
-                                chrono::Local::now()
-                                    .format("%Y-%m-%d %H:%M:%S")
-                                    .to_string(),
-                            );
-                            self.index_status.indexed_path = Some(
-                                self.scan_paths.join(", ")
-                            );
-                            self.error_message = Some(format!(
-                                "{} fichiers indexes depuis {} dossiers",
-                                total_indexed,
-                                self.scan_paths.len()
-                            ));
-                        }
-                        Err(e) => {
-                            self.error_message = Some(format!("Erreur commit: {}", e));
-                        }
-                    }
-                }
-                Err(e) => {
-                    self.error_message = Some(format!("Erreur writer: {}", e));
-                }
+        // Vérifier que tous les chemins existent
+        for path_str in &self.scan_paths {
+            let path = PathBuf::from(path_str);
+            if !path.exists() {
+                self.error_message = Some(format!("Dossier inexistant: {}", path_str));
+                self.indexing_in_progress = false;
+                return;
             }
         }
 
-        self.indexing_in_progress = false;
+        // Cloner les données nécessaires pour le thread
+        let index_dir = self.index_dir.clone();
+        let scan_paths = self.scan_paths.clone();
+        let max_files = self.max_files_to_index;
+
+        // Créer le channel de progression
+        let (progress_tx, progress_rx) = unbounded::<IndexProgress>();
+        self.progress_rx = Some(progress_rx);
+
+        // Lancer l'indexation dans un thread séparé
+        std::thread::spawn(move || {
+            // Charger l'index dans le thread
+            let index = match SearchIndex::new(&index_dir) {
+                Ok(idx) => idx,
+                Err(_) => return,
+            };
+
+            // Effacer si demandé
+            if clear_existing {
+                let _ = index.clear();
+            }
+
+            let scanner = FileScanner::new();
+            let files_per_path = max_files / scan_paths.len().max(1);
+
+            let mut writer = match index.create_writer() {
+                Ok(w) => w,
+                Err(_) => return,
+            };
+
+            let mut total_indexed = 0;
+
+            // Scanner chaque dossier
+            for path_str in &scan_paths {
+                let scan_path = PathBuf::from(path_str);
+
+                if let Ok(files) = scanner.scan_directory(&scan_path, files_per_path) {
+                    let total_files = files.len();
+
+                    for (i, file) in files.iter().enumerate() {
+                        if index.add_file(&mut writer, &file.path, &file.filename).is_ok() {
+                            total_indexed += 1;
+
+                            // Envoyer progression tous les 10 fichiers
+                            if i % 10 == 0 {
+                                let _ = progress_tx.send(IndexProgress {
+                                    indexed_count: total_indexed,
+                                    total_files,
+                                    current_path: file.filename.clone(),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Commit final
+            let _ = writer.commit();
+
+            // Envoyer progression finale
+            let _ = progress_tx.send(IndexProgress {
+                indexed_count: total_indexed,
+                total_files: total_indexed,
+                current_path: "Termine".to_string(),
+            });
+        });
     }
 
     // Rafraîchit l'index actuel (ajoute nouveaux fichiers par-dessus)
@@ -306,6 +329,42 @@ impl XFinderApp {
             }
         }
     }
+
+    // Traiter les messages de progression de l'indexation
+    fn process_indexing_progress(&mut self) {
+        let mut is_done = false;
+        let mut final_count = 0;
+
+        if let Some(ref rx) = self.progress_rx {
+            while let Ok(progress) = rx.try_recv() {
+                self.index_status.current_indexed = progress.indexed_count;
+                self.index_status.total_to_index = progress.total_files;
+
+                // Si terminé
+                if progress.current_path == "Termine" {
+                    is_done = true;
+                    final_count = progress.indexed_count;
+                }
+            }
+        }
+
+        if is_done {
+            self.indexing_in_progress = false;
+            self.index_status.file_count = final_count;
+            self.index_status.last_update = Some(
+                chrono::Local::now()
+                    .format("%Y-%m-%d %H:%M:%S")
+                    .to_string(),
+            );
+            self.index_status.indexed_path = Some(self.scan_paths.join(", "));
+            self.error_message = Some(format!(
+                "{} fichiers indexes depuis {} dossiers",
+                final_count,
+                self.scan_paths.len()
+            ));
+            self.progress_rx = None;
+        }
+    }
 }
 
 impl eframe::App for XFinderApp {
@@ -313,13 +372,16 @@ impl eframe::App for XFinderApp {
         // Traiter les événements watchdog à chaque frame (low latency)
         self.process_watchdog_events();
 
+        // Traiter la progression de l'indexation
+        self.process_indexing_progress();
+
         render_top_panel(ctx, self);
         render_side_panel(ctx, self);
         render_main_ui(ctx, self);
         render_preview_panel(ctx, self);
 
         // Redemander un repaint pour traiter les événements en continu
-        if self.watchdog_enabled {
+        if self.watchdog_enabled || self.indexing_in_progress {
             ctx.request_repaint();
         }
     }

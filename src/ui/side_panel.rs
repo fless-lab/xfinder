@@ -30,6 +30,25 @@ pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
                 app.index_status.file_count
             ));
 
+            // Afficher la progression pendant l'indexation
+            if app.indexing_in_progress {
+                ui.add_space(5.0);
+                ui.label(format!(
+                    "Indexation: {}/{} fichiers",
+                    app.index_status.current_indexed,
+                    app.index_status.total_to_index
+                ));
+
+                // Progress bar
+                if app.index_status.total_to_index > 0 {
+                    let progress = app.index_status.current_indexed as f32 /
+                                  app.index_status.total_to_index as f32;
+                    ui.add(egui::ProgressBar::new(progress)
+                        .show_percentage()
+                        .animate(true));
+                }
+            }
+
             if let Some(ref last_update) = app.index_status.last_update {
                 ui.label(format!("Derniere MAJ: {}", last_update));
             } else {
