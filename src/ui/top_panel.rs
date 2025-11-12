@@ -11,7 +11,7 @@ pub fn render_top_panel(ctx: &egui::Context, app: &mut XFinderApp) {
             ui.heading("xfinder - Recherche Intelligente");
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("Lancer Indexation").clicked() && !app.indexing_in_progress {
-                    app.start_indexing();
+                    app.start_indexing(true); // Nouvelle indexation par défaut
                 }
                 if app.indexing_in_progress {
                     ui.spinner();

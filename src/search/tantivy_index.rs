@@ -99,6 +99,22 @@ impl SearchIndex {
         Ok(writer)
     }
 
+    // Efface tous les documents de l'index
+    // Utile pour réinitialiser complètement avant une nouvelle indexation
+    pub fn clear(&self) -> Result<()> {
+        let mut writer = self.create_writer()?;
+        writer.delete_all_documents()?;
+        writer.commit()?;
+        Ok(())
+    }
+
+    // Compte le nombre de documents dans l'index
+    pub fn count_documents(&self) -> Result<usize> {
+        let reader = self.index.reader()?;
+        let searcher = reader.searcher();
+        Ok(searcher.num_docs() as usize)
+    }
+
     // Recherche des fichiers dans l'index en fonction d'une requête textuelle
     //
     // Cette méthode:

@@ -17,6 +17,7 @@ pub struct XFinderApp {
     pub indexing_in_progress: bool,
     pub error_message: Option<String>,
     pub preview_file_path: Option<String>,
+    pub max_files_to_index: usize,
 }
 
 #[derive(Default)]
@@ -24,6 +25,7 @@ pub struct IndexStatus {
     pub is_ready: bool,
     pub file_count: usize,
     pub last_update: Option<String>,
+    pub indexed_path: Option<String>,
 }
 
 impl Default for XFinderApp {
@@ -49,6 +51,7 @@ impl Default for XFinderApp {
             indexing_in_progress: false,
             error_message: None,
             preview_file_path: None,
+            max_files_to_index: 10000, // Défaut: 10k fichiers
         }
     }
 }
@@ -67,7 +70,8 @@ impl XFinderApp {
         }
     }
 
-    pub fn start_indexing(&mut self) {
+    // Lance une nouvelle indexation complète (efface l'ancien index)
+    pub fn start_indexing(&mut self, clear_existing: bool) {
         self.indexing_in_progress = true;
         self.error_message = None;
 
@@ -84,9 +88,18 @@ impl XFinderApp {
                 return;
             }
 
+            // Si demandé, effacer l'index existant
+            if clear_existing {
+                if let Err(e) = index.clear() {
+                    self.error_message = Some(format!("Erreur nettoyage index: {}", e));
+                    self.indexing_in_progress = false;
+                    return;
+                }
+            }
+
             let scanner = FileScanner::new();
 
-            match scanner.scan_directory(&scan_path, 500) {
+            match scanner.scan_directory(&scan_path, self.max_files_to_index) {
                 Ok(files) => {
                     match index.create_writer() {
                         Ok(mut writer) => {
@@ -106,6 +119,7 @@ impl XFinderApp {
                                             .format("%Y-%m-%d %H:%M:%S")
                                             .to_string(),
                                     );
+                                    self.index_status.indexed_path = Some(scan_path.display().to_string());
                                     self.error_message = Some(format!(
                                         "{} fichiers indexes ({})",
                                         indexed_count,
@@ -129,6 +143,20 @@ impl XFinderApp {
         }
 
         self.indexing_in_progress = false;
+    }
+
+    // Rafraîchit l'index actuel (ajoute nouveaux fichiers par-dessus)
+    pub fn refresh_index(&mut self) {
+        self.start_indexing(false);
+    }
+
+    // Vérifie si le chemin à indexer est différent du dernier indexé
+    pub fn is_path_changed(&self) -> bool {
+        if let Some(ref indexed_path) = self.index_status.indexed_path {
+            indexed_path != &self.scan_path
+        } else {
+            false
+        }
     }
 
     pub fn perform_search(&mut self) {

@@ -36,6 +36,11 @@ pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
                 ui.label("Derniere MAJ: Jamais");
             }
 
+            if let Some(ref indexed_path) = app.index_status.indexed_path {
+                ui.label("Chemin indexe:");
+                ui.label(indexed_path).on_hover_text(indexed_path);
+            }
+
             ui.add_space(10.0);
             ui.separator();
             ui.add_space(10.0);
@@ -77,9 +82,53 @@ pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
             ui.separator();
             ui.add_space(10.0);
 
+            // Configuration de la limite
+            ui.label("Limite de fichiers:");
+            ui.horizontal(|ui| {
+                ui.add(egui::Slider::new(&mut app.max_files_to_index, 100..=100000)
+                    .logarithmic(true)
+                    .text("fichiers"));
+            });
+            ui.label(format!("(Actuellement: {} fichiers max)", app.max_files_to_index));
+
+            ui.add_space(10.0);
+            ui.separator();
+            ui.add_space(10.0);
+
             ui.label("Actions:");
+
+            // Détection de changement de chemin
+            let path_changed = app.is_path_changed();
+            if path_changed && app.index_status.indexed_path.is_some() {
+                ui.colored_label(
+                    egui::Color32::from_rgb(255, 165, 0),
+                    "ATTENTION: Chemin different de l'index actuel!"
+                );
+                ui.add_space(5.0);
+            }
+
+            ui.horizontal(|ui| {
+                if ui.button("Nouvelle Indexation").clicked() {
+                    app.start_indexing(true); // Efface l'ancien
+                }
+
+                if ui.button("Rafraichir").clicked() {
+                    app.refresh_index(); // Ajoute par-dessus
+                }
+            });
+
+            ui.add_space(5.0);
+
             if ui.button("Charger Index Existant").clicked() {
                 app.load_index();
             }
+
+            // Aide contextuelle
+            ui.add_space(5.0);
+            ui.separator();
+            ui.add_space(5.0);
+            ui.label("Info:");
+            ui.label("- Nouvelle: Efface l'ancien index");
+            ui.label("- Rafraichir: Ajoute nouveaux fichiers");
         });
 }
