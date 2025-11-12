@@ -19,6 +19,7 @@ walkdir = "2.4"
 
 # === Utils ===
 anyhow = "1.0"
+chrono = "0.4"
 
 [dev-dependencies]
 tempfile = "3.8"
