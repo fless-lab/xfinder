@@ -60,9 +60,15 @@ Rendering   : wgpu (GPU-accelerated)
 Search      : Tantivy 0.22 (comme spotlight_windows)
 Database    : SQLite (rusqlite 0.32)
 Filesystem  : walkdir 2.4
-OCR         : Tesseract (plus tard - Semaine 9+)
+OCR         : PaddleOCR (primary), olmOCR/RolmOCR (fallback), Tesseract (3e position)
 IA          : Candle + LEANN (plus tard - Semaine 13+)
 ```
+
+**Architecture OCR (Pattern Strategy)** :
+- Interface `OcrEngine` trait
+- Adaptateurs : `PaddleOcrAdapter`, `OlmOcrAdapter`, `TesseractAdapter`
+- Factory pour sélectionner le meilleur disponible
+- PaddleOCR = prioritaire (80+ langues, real-time, open-source)
 
 ---
 
@@ -190,17 +196,23 @@ git commit -m "test: add search index creation test"
 
 ## Notes de session
 
-### 2025-11-12 - Setup initial
+### 2025-11-12 - Setup initial + Semaine 1 début
 - Créé Cargo.toml avec dépendances minimales
 - Créé src/main.rs avec Hello World egui
 - Ajouté tests TDD basiques
+- **Module search/tantivy_index.rs** : Indexation + recherche Tantivy
+- **UI complète** : Indexation manuelle, statut index, recherche
 - Commits effectués :
   - `docs: finalisation documentation complète`
   - `feat: hello world egui avec tests TDD`
+  - `docs: update README to professional style`
+  - `feat: add Tantivy search module with tests`
+  - `feat: integrate Tantivy search with manual indexing UI`
 
 ### Prochaine session
-→ Commencer Semaine 1 - Tâche 1.1 : Créer `src/search/mod.rs`
-→ Suivre `IMPLEMENTATION_PLAN.md` étape par étape
+→ **Tester l'app** : `cargo run` et cliquer "Lancer Indexation"
+→ Implémenter indexation dossier réel (remplacer fichiers test)
+→ Architecture OCR avec pattern Strategy (PaddleOCR primary)
 
 ---
 
