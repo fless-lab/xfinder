@@ -92,8 +92,11 @@ impl SearchIndex {
         // CRITIQUE: Enregistrer le tokenizer n-gram À CHAQUE FOIS
         // Même si on ouvre un index existant, le tokenizer doit être enregistré
         // car il n'est pas persisté sur disque
+        //
+        // N-grams 2-15: permet de chercher des fragments courts ET des mots complets
+        // Ex: "readme" (6 chars), "document" (8 chars), "presentation" (12 chars)
         let ngram_tokenizer = TextAnalyzer::builder(
-            NgramTokenizer::new(2, 6, false).unwrap()
+            NgramTokenizer::new(2, 15, false).unwrap()
         )
         .filter(LowerCaser)
         .build();
@@ -207,6 +210,7 @@ impl SearchIndex {
 
     // Recherche ultra-flexible: marche avec n'importe quel fragment
     // Ex: ".m" trouve ".md", "log" trouve "CHANGELOG.md", "ops" trouve "DataOps.pdf"
+    // Avec n-grams 2-15, supporte fragments courts ET mots complets
     //
     // Options disponibles:
     // - exact_match: recherche exacte sans n-grams
