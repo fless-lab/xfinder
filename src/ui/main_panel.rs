@@ -141,9 +141,41 @@ pub fn render_main_ui(ctx: &egui::Context, app: &mut XFinderApp) {
                     }
 
                     if let Some(date) = app.filter_date_after {
-                        // Afficher la date actuelle et permettre de la modifier via un input texte
-                        let mut date_str = date.format("%Y-%m-%d").to_string();
-                        ui.label(&date_str);
+                        // Mode édition ou affichage
+                        if !app.editing_date_filter {
+                            // Affichage normal: label cliquable (mais ne ressemble pas à un input)
+                            let date_str = date.format("%Y-%m-%d").to_string();
+                            let response = ui.label(&date_str);
+                            if response.clicked() {
+                                app.editing_date_filter = true;
+                                app.date_filter_input = date_str;
+                            }
+                        } else {
+                            // Mode édition: TextEdit
+                            let response = ui.add(
+                                egui::TextEdit::singleline(&mut app.date_filter_input)
+                                    .desired_width(100.0)
+                            );
+
+                            // Valider si Enter ou perte de focus
+                            let should_validate = response.lost_focus() ||
+                                (response.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)));
+
+                            if should_validate {
+                                // Parser et appliquer la nouvelle date
+                                if let Ok(new_date) = chrono::NaiveDate::parse_from_str(&app.date_filter_input, "%Y-%m-%d") {
+                                    app.filter_date_after = Some(new_date);
+                                    advanced_filters_changed = true;
+                                }
+                                app.editing_date_filter = false;
+                                app.date_filter_input.clear();
+                            }
+
+                            // Auto-focus le champ quand on entre en mode édition
+                            if !response.has_focus() {
+                                response.request_focus();
+                            }
+                        }
 
                         // Boutons pour incrémenter/décrémenter les jours
                         if ui.button("-7j").clicked() {

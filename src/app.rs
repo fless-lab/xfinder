@@ -145,6 +145,8 @@ pub struct XFinderApp {
     pub show_settings_modal: bool,         // Afficher la fenêtre de paramètres
     pub new_extension_input: String,       // Input temporaire pour ajouter une extension
     pub new_pattern_input: String,         // Input temporaire pour ajouter un pattern
+    pub editing_date_filter: bool,         // Mode édition pour le filtre de date
+    pub date_filter_input: String,         // Input temporaire pour éditer la date
     progress_rx: Option<Receiver<IndexProgress>>,
 }
 
@@ -225,6 +227,8 @@ impl Default for XFinderApp {
             show_settings_modal: false,
             new_extension_input: String::new(),
             new_pattern_input: String::new(),
+            editing_date_filter: false,
+            date_filter_input: String::new(),
             progress_rx: None,
         }
     }
