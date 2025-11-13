@@ -10,8 +10,8 @@ pub fn render_top_panel(ctx: &egui::Context, app: &mut XFinderApp) {
         ui.horizontal(|ui| {
             ui.heading("xfinder - Recherche Intelligente");
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button("Lancer Indexation").clicked() && !app.indexing_in_progress {
-                    app.start_indexing(true); // Nouvelle indexation par défaut
+                if ui.button("📊 Statistiques").clicked() {
+                    app.show_statistics_modal = true;
                 }
                 if app.indexing_in_progress {
                     ui.spinner();

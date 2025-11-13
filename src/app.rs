@@ -7,7 +7,7 @@ use std::sync::Arc;
 use crossbeam_channel::{unbounded, Receiver, Sender};
 
 use crate::search::{FileScanner, SearchIndex, SearchResult, FileWatcher, SearchOptions};
-use crate::ui::{render_main_ui, render_side_panel, render_top_panel, render_preview_panel, render_settings_modal};
+use crate::ui::{render_main_ui, render_side_panel, render_top_panel, render_preview_panel, render_settings_modal, render_statistics_modal};
 use crate::audio_player::AudioPlayer;
 use crate::database::Database;
 use chrono::{DateTime, Local, NaiveDate};
@@ -145,6 +145,7 @@ pub struct XFinderApp {
     pub excluded_patterns: Vec<String>,   // Patterns glob (node_modules, .git, etc.)
     // UI state
     pub show_settings_modal: bool,         // Afficher la fenêtre de paramètres
+    pub show_statistics_modal: bool,       // Afficher la fenêtre de statistiques
     pub new_extension_input: String,       // Input temporaire pour ajouter une extension
     pub new_pattern_input: String,         // Input temporaire pour ajouter un pattern
     pub editing_date_filter: bool,         // Mode édition pour le filtre de date
@@ -238,6 +239,7 @@ impl Default for XFinderApp {
             ],
             // UI state
             show_settings_modal: false,
+            show_statistics_modal: false,
             new_extension_input: String::new(),
             new_pattern_input: String::new(),
             editing_date_filter: false,
@@ -723,6 +725,7 @@ impl eframe::App for XFinderApp {
         render_main_ui(ctx, self);
         render_preview_panel(ctx, self);
         render_settings_modal(ctx, self);
+        render_statistics_modal(ctx, self);
 
         // Redemander un repaint pour traiter les événements en continu
         if self.watchdog_enabled || self.indexing_in_progress {
