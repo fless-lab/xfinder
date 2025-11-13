@@ -169,35 +169,27 @@ pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
             ui.separator();
             ui.add_space(10.0);
 
-            // Configuration des n-grams (min et max)
-            ui.label(format!("N-grams: {}-{} chars", app.min_ngram_size, app.max_ngram_size));
-
-            // Layout horizontal compact: [Min box] [Slider Min] [Slider Max] [Max box]
+            // Configuration des n-grams: [Box] O-------O [Box]
             ui.horizontal(|ui| {
+                // Box Min
                 ui.add(egui::DragValue::new(&mut app.min_ngram_size)
                     .speed(1)
-                    .clamp_range(1..=app.max_ngram_size)
-                    .prefix("Min: "));
+                    .clamp_range(1..=app.max_ngram_size));
 
-                ui.add(egui::Slider::new(&mut app.min_ngram_size, 1..=app.max_ngram_size)
+                // Slider Min (range complet pour alignement visuel)
+                ui.add(egui::Slider::new(&mut app.min_ngram_size, 1..=255)
                     .show_value(false));
-            });
 
-            ui.horizontal(|ui| {
+                // Slider Max (range complet pour alignement visuel)
+                ui.add(egui::Slider::new(&mut app.max_ngram_size, 1..=255)
+                    .show_value(false));
+
+                // Box Max
                 ui.add(egui::DragValue::new(&mut app.max_ngram_size)
                     .speed(1)
-                    .clamp_range(app.min_ngram_size..=255)
-                    .prefix("Max: "));
-
-                ui.add(egui::Slider::new(&mut app.max_ngram_size, app.min_ngram_size..=255)
-                    .show_value(false));
+                    .clamp_range(app.min_ngram_size..=255));
             });
-
-            ui.small("Rec: 2-20 | Large=lent+flex | Etroit=rapide+limité");
-            ui.colored_label(
-                egui::Color32::from_rgb(255, 200, 100),
-                "⚠ Réindexer pour appliquer"
-            );
+            ui.small(format!("N-grams: {}-{} | Rec: 2-20", app.min_ngram_size, app.max_ngram_size));
 
             ui.add_space(10.0);
             ui.separator();
