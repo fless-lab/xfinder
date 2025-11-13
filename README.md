@@ -24,7 +24,7 @@ rustc >= 1.70
 cargo >= 1.70
 
 # Clone et build
-git clone https://github.com/your-org/xfinder.git
+git clone https://github.com/fless-lab/xfinder.git
 cd xfinder
 cargo build --release
 
@@ -47,7 +47,7 @@ L'exécutable se trouve dans `target/release/xfinder.exe` (~8MB)
 Fichier: `~/.xfinder_index/config.toml`
 
 ```toml
-scan_paths = ["C:\\Users\\YourName\\Downloads"]
+scan_paths = ["C:\\Users\\fless-lab\\Downloads"]
 
 [exclusions]
 extensions = [".tmp", ".log", ".cache"]
