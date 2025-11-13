@@ -256,6 +256,9 @@ pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
             if app.watchdog_enabled {
                 ui.label("Detection auto: ajout/modification/suppression");
             }
+
+            // Padding en bas pour éviter que le contenu soit collé au bord
+            ui.add_space(20.0);
             }); // Fin du ScrollArea
         });
 }
