@@ -167,18 +167,42 @@ pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
             ui.separator();
             ui.add_space(10.0);
 
-            // Configuration de la taille max des n-grams
-            ui.label("Taille max recherche (n-grams):");
+            // Configuration des n-grams (min et max)
+            ui.label("Configuration N-grams (recherche):");
+            ui.label(format!("Range actuelle: {}-{} caractères", app.min_ngram_size, app.max_ngram_size));
+
+            ui.add_space(5.0);
+
+            // Inputs pour min et max
             ui.horizontal(|ui| {
-                ui.add(egui::Slider::new(&mut app.max_ngram_size, 6..=100)
-                    .text("caractères"));
+                ui.label("Min:");
+                ui.add(egui::DragValue::new(&mut app.min_ngram_size)
+                    .speed(1)
+                    .clamp_range(1..=app.max_ngram_size));
+
+                ui.label("Max:");
+                ui.add(egui::DragValue::new(&mut app.max_ngram_size)
+                    .speed(1)
+                    .clamp_range(app.min_ngram_size..=255));
             });
-            ui.label(format!("(Actuel: {} chars)", app.max_ngram_size));
+
+            // Sliders individuels pour visualisation
+            ui.label("Min:");
+            ui.add(egui::Slider::new(&mut app.min_ngram_size, 1..=app.max_ngram_size)
+                .show_value(false));
+
+            ui.label("Max:");
+            ui.add(egui::Slider::new(&mut app.max_ngram_size, app.min_ngram_size..=255)
+                .show_value(false));
+
+            ui.add_space(5.0);
 
             // Aide contextuelle
-            ui.small("↑ Plus petit = indexation rapide, recherches limitées");
-            ui.small("↓ Plus grand = indexation lente, recherches flexibles");
-            ui.small("Recommandé: 20 (bon équilibre)");
+            ui.small("Min = taille minimum fragment (généralement 2)");
+            ui.small("Max = taille maximum requête supportée");
+            ui.small("↑ Range large = indexation lente mais flexible");
+            ui.small("↓ Range étroite = indexation rapide mais limitée");
+            ui.small("Recommandé: 2-20 (bon équilibre)");
 
             ui.colored_label(
                 egui::Color32::from_rgb(255, 200, 100),

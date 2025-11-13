@@ -53,10 +53,11 @@ impl SearchIndex {
     // - path: chemin complet du fichier (TEXT | STORED)
     // - filename: nom du fichier uniquement (TEXT | STORED)
     //
-    // max_ngram_size: taille max des n-grams (2-max_ngram_size)
+    // min_ngram_size: taille min des n-grams (généralement 2)
+    // max_ngram_size: taille max des n-grams (min_ngram_size-max_ngram_size)
     // - Plus petit = indexation rapide mais recherches limitées
     // - Plus grand = indexation lente mais recherches flexibles
-    pub fn new(index_dir: &Path, max_ngram_size: usize) -> Result<Self> {
+    pub fn new(index_dir: &Path, min_ngram_size: usize, max_ngram_size: usize) -> Result<Self> {
         std::fs::create_dir_all(index_dir)
             .context("Impossible de créer le dossier d'index")?;
 
@@ -97,13 +98,12 @@ impl SearchIndex {
         // Même si on ouvre un index existant, le tokenizer doit être enregistré
         // car il n'est pas persisté sur disque
         //
-        // N-grams 2-max_ngram_size: configurable via l'UI
-        // - Fragments: ".m", "log", "pdf" (2-5 chars)
-        // - Mots: "readme", "document" (6-10 chars)
-        // - Recommandation: 20 pour bon équilibre vitesse/flexibilité
-        // - Pour chercher des noms complets longs: augmenter ou utiliser "Match exact"
+        // N-grams min-max: configurable via l'UI
+        // - Recommandation: 2-20 pour bon équilibre vitesse/flexibilité
+        // - Pour fragments ultra-courts: commencer à 1
+        // - Pour noms complets longs: augmenter max ou utiliser "Match exact"
         let ngram_tokenizer = TextAnalyzer::builder(
-            NgramTokenizer::new(2, max_ngram_size, false).unwrap()
+            NgramTokenizer::new(min_ngram_size, max_ngram_size, false).unwrap()
         )
         .filter(LowerCaser)
         .build();
@@ -217,7 +217,7 @@ impl SearchIndex {
 
     // Recherche ultra-flexible: marche avec n'importe quel fragment
     // Ex: ".m" trouve ".md", "log" trouve "CHANGELOG.md", "ops" trouve "DataOps.pdf"
-    // Avec n-grams 2-20, supporte les requêtes typiques (mots jusqu'à 20 chars)
+    // Les n-grams (min-max) sont configurables via l'UI avant l'indexation
     // Pour les noms complets très longs: utiliser l'option "Match exact"
     //
     // Options disponibles:
@@ -322,7 +322,7 @@ mod tests {
     fn test_index_creation() {
         let temp_dir = std::env::temp_dir().join("xfinder_test_index_1");
         let _ = std::fs::remove_dir_all(&temp_dir);
-        let index = SearchIndex::new(&temp_dir, 20);
+        let index = SearchIndex::new(&temp_dir, 2, 20);
         assert!(index.is_ok());
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -331,7 +331,7 @@ mod tests {
     fn test_add_and_search_file() {
         let temp_dir = std::env::temp_dir().join("xfinder_test_index_2");
         let _ = std::fs::remove_dir_all(&temp_dir);
-        let index = SearchIndex::new(&temp_dir, 20).unwrap();
+        let index = SearchIndex::new(&temp_dir, 2, 20).unwrap();
 
         // Ajouter des fichiers test
         let mut writer = index.create_writer().unwrap();
@@ -362,7 +362,7 @@ mod tests {
     fn test_search_empty_query() {
         let temp_dir = std::env::temp_dir().join("xfinder_test_index_3");
         let _ = std::fs::remove_dir_all(&temp_dir);
-        let index = SearchIndex::new(&temp_dir, 20).unwrap();
+        let index = SearchIndex::new(&temp_dir, 2, 20).unwrap();
 
         let results = index.search("nonexistent_file_xyz", 10, SearchOptions::default()).unwrap();
         assert_eq!(results.len(), 0);
