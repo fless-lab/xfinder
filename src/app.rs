@@ -10,6 +10,7 @@ use crate::search::{FileScanner, SearchIndex, SearchResult, FileWatcher, SearchO
 use crate::ui::{render_main_ui, render_side_panel, render_top_panel, render_preview_panel, render_settings_modal, render_statistics_modal};
 use crate::audio_player::AudioPlayer;
 use crate::database::Database;
+use crate::config::AppConfig;
 use chrono::{DateTime, Local, NaiveDate};
 
 // Message de progression de l'indexation
@@ -113,6 +114,7 @@ pub struct XFinderApp {
     pub database: Option<Arc<Database>>,         // Base SQLite pour métadonnées
     pub file_watcher: Option<FileWatcher>,
     pub audio_player: Option<AudioPlayer>,
+    pub config: AppConfig,                       // Configuration persistante
     pub index_dir: PathBuf,
     pub scan_paths: Vec<String>,
     pub index_status: IndexStatus,
@@ -170,13 +172,9 @@ impl Default for XFinderApp {
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
             .join(".xfinder_index");
 
-        // Dossiers par défaut
-        let default_paths = vec![
-            dirs::download_dir()
-                .unwrap_or_else(|| dirs::home_dir().unwrap_or_default())
-                .to_string_lossy()
-                .to_string()
-        ];
+        // Charger la configuration (crée defaults si absent)
+        let config = AppConfig::load(AppConfig::default_path())
+            .unwrap_or_else(|_| AppConfig::default());
 
         // Initialiser la database SQLite
         let db_path = dirs::home_dir()
@@ -188,6 +186,18 @@ impl Default for XFinderApp {
             .ok()
             .map(Arc::new);
 
+        // Utiliser les valeurs de la config
+        let scan_paths = config.scan_paths.clone();
+        let excluded_extensions = config.exclusions.extensions.clone();
+        let excluded_patterns = config.exclusions.patterns.clone();
+        let excluded_dirs = config.exclusions.dirs.clone();
+        let min_ngram_size = config.indexing.min_ngram_size;
+        let max_ngram_size = config.indexing.max_ngram_size;
+        let max_files_to_index = config.indexing.max_files_to_index;
+        let no_file_limit = config.indexing.no_file_limit;
+        let results_display_limit = config.ui.results_display_limit;
+        let watchdog_enabled = config.ui.watchdog_enabled;
+
         Self {
             search_query: String::new(),
             search_results: Vec::new(),
@@ -196,16 +206,17 @@ impl Default for XFinderApp {
             database,
             file_watcher: None,
             audio_player: AudioPlayer::new().ok(),
+            config,
             index_dir,
-            scan_paths: default_paths,
+            scan_paths,
             index_status: IndexStatus::default(),
             indexing_in_progress: false,
             error_message: None,
             preview_file_path: None,
-            max_files_to_index: 100000,
-            no_file_limit: false,
-            results_display_limit: 50,
-            watchdog_enabled: false,
+            max_files_to_index,
+            no_file_limit,
+            results_display_limit,
+            watchdog_enabled,
             watchdog_update_count: 0,
             scan_entire_pc: false,
             // Options de recherche par défaut
@@ -213,30 +224,19 @@ impl Default for XFinderApp {
             search_case_sensitive: false,
             search_in_filename: true,
             search_in_path: true,
-            // Par défaut: n-grams 2-20 (bon équilibre vitesse/flexibilité)
-            min_ngram_size: 2,
-            max_ngram_size: 20,
+            // Utiliser les valeurs de config pour n-grams
+            min_ngram_size,
+            max_ngram_size,
             // Filtres et tri par défaut
             filter_file_type: FileTypeFilter::All,
             filter_date_after: None,
             filter_size_min: None,
             filter_size_max: None,
             sort_by: SortBy::Relevance,
-            // Exclusions par défaut (patterns courants)
-            excluded_dirs: vec![],
-            excluded_extensions: vec![
-                ".tmp".to_string(),
-                ".log".to_string(),
-                ".cache".to_string(),
-                ".bak".to_string(),
-            ],
-            excluded_patterns: vec![
-                "node_modules".to_string(),
-                ".git".to_string(),
-                "__pycache__".to_string(),
-                "target/debug".to_string(),  // Rust builds
-                "target/release".to_string(),
-            ],
+            // Utiliser les exclusions de la config
+            excluded_dirs,
+            excluded_extensions,
+            excluded_patterns,
             // UI state
             show_settings_modal: false,
             show_statistics_modal: false,
@@ -261,6 +261,26 @@ impl XFinderApp {
                 self.error_message = Some(format!("Erreur chargement index: {}", e));
                 self.index_status.is_ready = false;
             }
+        }
+    }
+
+    /// Sauvegarde la configuration actuelle dans le fichier TOML
+    pub fn save_config(&mut self) {
+        // Synchroniser les valeurs actuelles de l'app vers la config
+        self.config.scan_paths = self.scan_paths.clone();
+        self.config.exclusions.extensions = self.excluded_extensions.clone();
+        self.config.exclusions.patterns = self.excluded_patterns.clone();
+        self.config.exclusions.dirs = self.excluded_dirs.clone();
+        self.config.indexing.min_ngram_size = self.min_ngram_size;
+        self.config.indexing.max_ngram_size = self.max_ngram_size;
+        self.config.indexing.max_files_to_index = self.max_files_to_index;
+        self.config.indexing.no_file_limit = self.no_file_limit;
+        self.config.ui.results_display_limit = self.results_display_limit;
+        self.config.ui.watchdog_enabled = self.watchdog_enabled;
+
+        // Sauvegarder dans le fichier
+        if let Err(e) = self.config.save(AppConfig::default_path()) {
+            eprintln!("Erreur sauvegarde config: {}", e);
         }
     }
 
@@ -445,12 +465,14 @@ impl XFinderApp {
     pub fn add_scan_path(&mut self, path: String) {
         if !self.scan_paths.contains(&path) {
             self.scan_paths.push(path);
+            self.save_config();
         }
     }
 
     pub fn remove_scan_path(&mut self, index: usize) {
         if index < self.scan_paths.len() {
             self.scan_paths.remove(index);
+            self.save_config();
         }
     }
 
@@ -468,6 +490,7 @@ impl XFinderApp {
             }
         }
 
+        self.save_config();
         self.error_message = Some(format!("Scan PC complet: {} lecteurs detectes", self.scan_paths.len()));
     }
 
@@ -479,6 +502,7 @@ impl XFinderApp {
         if let Some(downloads) = dirs::download_dir() {
             self.scan_paths.push(downloads.to_string_lossy().to_string());
         }
+        self.save_config();
     }
 
     pub fn perform_search(&mut self) {
@@ -628,6 +652,7 @@ impl XFinderApp {
 
                 self.file_watcher = Some(watcher);
                 self.watchdog_enabled = true;
+                self.save_config();
                 self.error_message = Some(format!("Watchdog active sur {} dossiers", self.scan_paths.len()));
             }
             Err(e) => {
@@ -640,6 +665,7 @@ impl XFinderApp {
     pub fn disable_watchdog(&mut self) {
         self.file_watcher = None;
         self.watchdog_enabled = false;
+        self.save_config();
         self.error_message = Some("Watchdog desactive".to_string());
     }
 

@@ -8,6 +8,7 @@ mod search;
 mod ui;
 mod audio_player;
 mod database;
+mod config;
 
 #[cfg(test)]
 mod app_test;

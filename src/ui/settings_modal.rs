@@ -32,6 +32,7 @@ pub fn render_settings_modal(ctx: &egui::Context, app: &mut XFinderApp) {
                 });
                 if let Some(idx) = ext_to_remove {
                     app.excluded_extensions.remove(idx);
+                    app.save_config();
                 }
 
                 ui.add_space(5.0);
@@ -54,6 +55,7 @@ pub fn render_settings_modal(ctx: &egui::Context, app: &mut XFinderApp) {
                         if !app.excluded_extensions.contains(&ext) {
                             app.excluded_extensions.push(ext);
                             app.new_extension_input.clear();
+                            app.save_config();
                         }
                     }
                 });
@@ -79,6 +81,7 @@ pub fn render_settings_modal(ctx: &egui::Context, app: &mut XFinderApp) {
                 });
                 if let Some(idx) = pattern_to_remove {
                     app.excluded_patterns.remove(idx);
+                    app.save_config();
                 }
 
                 ui.add_space(5.0);
@@ -97,6 +100,7 @@ pub fn render_settings_modal(ctx: &egui::Context, app: &mut XFinderApp) {
                         if !app.excluded_patterns.contains(&pattern) {
                             app.excluded_patterns.push(pattern);
                             app.new_pattern_input.clear();
+                            app.save_config();
                         }
                     }
                 });
@@ -122,6 +126,7 @@ pub fn render_settings_modal(ctx: &egui::Context, app: &mut XFinderApp) {
                 });
                 if let Some(idx) = dir_to_remove {
                     app.excluded_dirs.remove(idx);
+                    app.save_config();
                 }
 
                 ui.add_space(5.0);
@@ -132,6 +137,7 @@ pub fn render_settings_modal(ctx: &egui::Context, app: &mut XFinderApp) {
                         let dir_str = path.to_string_lossy().to_string();
                         if !app.excluded_dirs.contains(&dir_str) {
                             app.excluded_dirs.push(dir_str);
+                            app.save_config();
                         }
                     }
                 }
@@ -166,6 +172,7 @@ pub fn render_settings_modal(ctx: &egui::Context, app: &mut XFinderApp) {
                         "target/release".to_string(),
                     ];
                     app.excluded_dirs.clear();
+                    app.save_config();
                 }
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
