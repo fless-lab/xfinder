@@ -173,9 +173,19 @@ Optional CUDA support for embedding generation provides 10x speed improvement at
 
 Project currently in active development. Contributions welcome after Phase 1 MVP completion.
 
-## License
+## Licence
 
-To be determined (likely GPL-3.0 or Apache-2.0)
+**Licence Personnalisée - Usage Non-Commercial**
+
+✅ Utilisation gratuite
+✅ Modification autorisée
+✅ Distribution autorisée
+❌ Revente interdite
+❌ Usage commercial interdit
+
+Voir [LICENSE](LICENSE) pour les détails complets.
+
+Pour toute utilisation commerciale, contactez l'auteur.
 
 ## Project Status
 
