@@ -144,12 +144,24 @@ pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
 
             // Configuration de la limite
             ui.label("Limite de fichiers:");
-            ui.horizontal(|ui| {
-                ui.add(egui::Slider::new(&mut app.max_files_to_index, 1000..=5000000)
-                    .logarithmic(true)
-                    .text("fichiers"));
+
+            if ui.checkbox(&mut app.no_file_limit, "Pas de limite (indexer tous les fichiers)").clicked() {
+                // Si on active "Pas de limite", on n'a plus besoin du slider
+            }
+
+            // Désactiver le slider si "Pas de limite" est activé
+            ui.add_enabled_ui(!app.no_file_limit, |ui| {
+                ui.horizontal(|ui| {
+                    ui.add(egui::Slider::new(&mut app.max_files_to_index, 1000..=5000000)
+                        .logarithmic(true)
+                        .text("fichiers"));
+                });
+                ui.label(format!("(Max: {} fichiers)", app.max_files_to_index));
             });
-            ui.label(format!("(Max: {} fichiers)", app.max_files_to_index));
+
+            if app.no_file_limit {
+                ui.label("(Mode: Aucune limite)");
+            }
 
             ui.add_space(10.0);
             ui.separator();

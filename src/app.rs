@@ -29,6 +29,7 @@ pub struct XFinderApp {
     pub error_message: Option<String>,
     pub preview_file_path: Option<String>,
     pub max_files_to_index: usize,
+    pub no_file_limit: bool,
     pub results_display_limit: usize,
     pub watchdog_enabled: bool,
     pub watchdog_update_count: usize,
@@ -73,6 +74,7 @@ impl Default for XFinderApp {
             error_message: None,
             preview_file_path: None,
             max_files_to_index: 100000,
+            no_file_limit: false,
             results_display_limit: 50,
             watchdog_enabled: false,
             watchdog_update_count: 0,
@@ -134,7 +136,11 @@ impl XFinderApp {
         // Cloner les données nécessaires pour le thread
         let index_dir = self.index_dir.clone();
         let scan_paths = self.scan_paths.clone();
-        let max_files = self.max_files_to_index;
+        let max_files = if self.no_file_limit {
+            usize::MAX
+        } else {
+            self.max_files_to_index
+        };
 
         // Créer le channel de progression
         let (progress_tx, progress_rx) = unbounded::<IndexProgress>();

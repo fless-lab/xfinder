@@ -92,9 +92,19 @@ pub fn render_main_ui(ctx: &egui::Context, app: &mut XFinderApp) {
                                     app.preview_file_path = Some(result.path.clone());
                                 }
                                 if ui.button("Dossier").clicked() {
-                                    // Ouvrir le dossier contenant le fichier
-                                    if let Some(parent) = std::path::Path::new(&result.path).parent() {
-                                        let _ = opener::open(parent);
+                                    // Sur Windows: ouvrir avec le fichier sélectionné
+                                    // Autres OS: ouvrir juste le dossier parent
+                                    #[cfg(target_os = "windows")]
+                                    {
+                                        let _ = std::process::Command::new("explorer")
+                                            .args(["/select,", &result.path])
+                                            .spawn();
+                                    }
+                                    #[cfg(not(target_os = "windows"))]
+                                    {
+                                        if let Some(parent) = std::path::Path::new(&result.path).parent() {
+                                            let _ = opener::open(parent);
+                                        }
                                     }
                                 }
                             });
@@ -105,7 +115,11 @@ pub fn render_main_ui(ctx: &egui::Context, app: &mut XFinderApp) {
             }
 
             if app.search_results.is_empty() && !app.search_query.is_empty() {
-                ui.label("Aucun resultat. Lancez une indexation d'abord.");
+                if app.search_index.is_some() {
+                    ui.label("Aucun resultat pour cette recherche.");
+                } else {
+                    ui.label("Index non charge. Lancez une indexation d'abord.");
+                }
             }
 
             // Bouton "Charger plus" si il y a encore des résultats
