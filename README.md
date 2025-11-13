@@ -117,7 +117,6 @@ cargo test
 cargo run
 ```
 
-See [QUICKSTART.md](QUICKSTART.md) for detailed setup instructions.
 
 ### For End Users (Future)
 

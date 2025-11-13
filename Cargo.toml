@@ -2,10 +2,10 @@
 name = "xfinder"
 version = "0.1.0"
 edition = "2021"
-license = "MIT"
+license-file = "LICENSE"
 description = "Moteur de recherche de fichiers ultra-rapide avec surveillance temps réel"
 repository = "https://github.com/fless-lab/xfinder"
-authors = ["fless-lab"]
+authors = ["Abdou-Raouf ATARMLA"]
 
 [dependencies]
 # === UI (egui natif) ===
