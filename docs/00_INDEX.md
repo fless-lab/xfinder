@@ -9,7 +9,7 @@
 | Document | Contenu | Audience | Statut |
 |----------|---------|----------|--------|
 | **[README.md](../README.md)** | Vue d'ensemble projet | Tous | ✅ À jour (2025-11-13) |
-| **[LICENSE](../LICENSE)** | Licence MIT | Tous | ✅ À jour |
+| **[LICENSE](../LICENSE)** | Licence Non-Commerciale | Tous | ✅ À jour |
 | **[QUICKSTART.md](../QUICKSTART.md)** | Démarrage rapide développeur | Dev | ⚠️ Mise à jour recommandée |
 | **[GIT_WORKFLOW.md](../GIT_WORKFLOW.md)** | Guide Git commit réguliers | Dev | ✅ À jour |
 | **[01_PRD](01_PRD_Product_Requirements.md)** | Spécifications produit | PM, Dev, Sponsors | ✅ À jour |
