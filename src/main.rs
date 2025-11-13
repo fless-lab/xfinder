@@ -7,6 +7,7 @@ mod app;
 mod search;
 mod ui;
 mod audio_player;
+mod database;
 
 #[cfg(test)]
 mod app_test;
