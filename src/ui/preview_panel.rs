@@ -65,7 +65,7 @@ pub fn render_preview_panel(ctx: &egui::Context, app: &mut XFinderApp) {
                 ui.add_space(10.0);
 
                 // Aperçu du contenu selon le type
-                render_file_preview(ui, &file_path, &metadata);
+                render_file_preview(ui, app, &file_path, &metadata);
             } else {
                 ui.label("Impossible de lire les informations du fichier");
             }
@@ -87,7 +87,7 @@ pub fn render_preview_panel(ctx: &egui::Context, app: &mut XFinderApp) {
         });
 }
 
-fn render_file_preview(ui: &mut egui::Ui, file_path: &str, metadata: &std::fs::Metadata) {
+fn render_file_preview(ui: &mut egui::Ui, app: &mut XFinderApp, file_path: &str, metadata: &std::fs::Metadata) {
     let path = Path::new(file_path);
     let extension = path.extension()
         .and_then(|e| e.to_str())
@@ -121,12 +121,10 @@ fn render_file_preview(ui: &mut egui::Ui, file_path: &str, metadata: &std::fs::M
             render_image_preview(ui, file_path);
         }
         "mp3" | "wav" | "ogg" | "flac" => {
-            ui.label("Fichier audio");
-            ui.label("Cliquez sur 'Ouvrir' pour ecouter");
+            render_audio_preview(ui, app, file_path);
         }
-        "mp4" | "avi" | "mkv" | "mov" => {
-            ui.label("Fichier video");
-            ui.label("Cliquez sur 'Ouvrir' pour visualiser");
+        "mp4" | "avi" | "mkv" | "mov" | "wmv" => {
+            render_video_preview(ui, file_path);
         }
         "zip" | "rar" | "7z" | "tar" | "gz" => {
             ui.label("Archive compressée");
@@ -146,14 +144,16 @@ fn render_file_preview(ui: &mut egui::Ui, file_path: &str, metadata: &std::fs::M
 fn render_image_preview(ui: &mut egui::Ui, file_path: &str) {
     ui.label("Aperçu de l'image:");
 
+    // Support SVG via resvg
+    let path_lower = file_path.to_lowercase();
+    if path_lower.ends_with(".svg") {
+        render_svg_preview(ui, file_path);
+        return;
+    }
+
     match image::open(file_path) {
         Ok(img) => {
             let size = [img.width() as usize, img.height() as usize];
-
-            // Limiter la taille de l'aperçu à 500x500
-            let max_size = 500.0;
-            let scale = (max_size / size[0] as f32).min(max_size / size[1] as f32).min(1.0);
-            let display_size = [size[0] as f32 * scale, size[1] as f32 * scale];
 
             ui.label(format!("Dimensions: {}x{} pixels", size[0], size[1]));
             ui.add_space(5.0);
@@ -173,11 +173,40 @@ fn render_image_preview(ui: &mut egui::Ui, file_path: &str) {
                 egui::TextureOptions::default()
             );
 
-            ui.add(egui::Image::new(&texture).max_size(egui::vec2(display_size[0], display_size[1])));
+            // IMPORTANT: S'adapter au container, ne pas imposer la taille
+            let available_width = ui.available_width();
+            let available_height = 400.0; // Hauteur max raisonnable
+
+            ui.add(
+                egui::Image::new(&texture)
+                    .fit_to_exact_size(egui::vec2(available_width, available_height))
+                    .shrink_to_fit()
+            );
         }
         Err(e) => {
             ui.label(format!("Impossible de charger l'image: {}", e));
             ui.label("Cliquez sur 'Ouvrir' pour visualiser avec l'app par defaut");
+        }
+    }
+}
+
+fn render_svg_preview(ui: &mut egui::Ui, file_path: &str) {
+    // Lire le fichier SVG
+    match std::fs::read_to_string(file_path) {
+        Ok(svg_content) => {
+            // Afficher les dimensions du SVG si possible
+            ui.label("Type: SVG (Scalable Vector Graphic)");
+            ui.add_space(5.0);
+
+            // Essayer de rendre le SVG
+            // Pour l'instant, juste afficher un message
+            // TODO: Implémenter le rendu SVG avec resvg quand disponible
+            ui.label("Aperçu SVG pas encore disponible");
+            ui.label(format!("Taille du fichier: {} octets", svg_content.len()));
+            ui.label("Cliquez sur 'Ouvrir' pour visualiser");
+        }
+        Err(e) => {
+            ui.label(format!("Impossible de lire le SVG: {}", e));
         }
     }
 }
@@ -189,6 +218,86 @@ fn render_pdf_preview(ui: &mut egui::Ui, _file_path: &str) {
 
     // TODO: Utiliser pdf-extract pour extraire le texte
     // Pour l'instant, juste afficher l'info
+}
+
+fn render_audio_preview(ui: &mut egui::Ui, app: &mut XFinderApp, file_path: &str) {
+    ui.label("Lecteur audio integre:");
+    ui.add_space(5.0);
+
+    if let Some(ref mut player) = app.audio_player {
+        // Afficher le fichier en cours
+        if let Some(current) = player.current_file() {
+            if current == file_path {
+                ui.label(format!("En lecture: {}",
+                    Path::new(file_path).file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("Inconnu")
+                ));
+            }
+        }
+
+        ui.add_space(5.0);
+
+        // Boutons de controle
+        ui.horizontal(|ui| {
+            if ui.button("▶ Lire").clicked() {
+                if let Err(e) = player.load_and_play(file_path) {
+                    app.error_message = Some(format!("Erreur lecture audio: {}", e));
+                }
+            }
+
+            if player.is_playing() {
+                if ui.button("⏸ Pause").clicked() {
+                    player.pause();
+                }
+            } else if player.current_file().is_some() {
+                if ui.button("▶ Reprendre").clicked() {
+                    player.resume();
+                }
+            }
+
+            if ui.button("⏹ Stop").clicked() {
+                player.stop();
+            }
+        });
+
+        ui.add_space(5.0);
+
+        // Controle de volume
+        let mut volume = player.get_volume();
+        ui.horizontal(|ui| {
+            ui.label("Volume:");
+            if ui.add(egui::Slider::new(&mut volume, 0.0..=1.0).show_value(false)).changed() {
+                player.set_volume(volume);
+            }
+            ui.label(format!("{}%", (volume * 100.0) as i32));
+        });
+    } else {
+        ui.label("Lecteur audio non disponible");
+        ui.label("Cliquez sur 'Ouvrir' pour ecouter avec l'app par defaut");
+    }
+}
+
+fn render_video_preview(ui: &mut egui::Ui, file_path: &str) {
+    ui.label("Fichier video:");
+    ui.add_space(5.0);
+
+    // Afficher les infos du fichier
+    if let Ok(metadata) = std::fs::metadata(file_path) {
+        let size_bytes = metadata.len();
+        ui.label(format!("Taille: {}", format_size(size_bytes)));
+
+        if let Some(extension) = Path::new(file_path).extension().and_then(|e| e.to_str()) {
+            ui.label(format!("Format: {}", extension.to_uppercase()));
+        }
+
+        ui.add_space(5.0);
+    }
+
+    // Note: L'extraction de frame nécessiterait ffmpeg ou gstreamer (trop lourd)
+    // Pour l'instant, on affiche juste un message
+    ui.label("Aperçu de frame non disponible");
+    ui.label("Cliquez sur 'Ouvrir' pour lire la video");
 }
 
 fn render_text_preview(ui: &mut egui::Ui, file_path: &str, file_size: u64) {

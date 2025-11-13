@@ -8,6 +8,7 @@ use crossbeam_channel::{unbounded, Receiver, Sender};
 
 use crate::search::{FileScanner, SearchIndex, SearchResult, FileWatcher};
 use crate::ui::{render_main_ui, render_side_panel, render_top_panel, render_preview_panel};
+use crate::audio_player::AudioPlayer;
 
 // Message de progression de l'indexation
 #[derive(Debug, Clone)]
@@ -22,6 +23,7 @@ pub struct XFinderApp {
     pub search_results: Vec<SearchResult>,
     pub search_index: Option<SearchIndex>,
     pub file_watcher: Option<FileWatcher>,
+    pub audio_player: Option<AudioPlayer>,
     pub index_dir: PathBuf,
     pub scan_paths: Vec<String>,
     pub index_status: IndexStatus,
@@ -67,6 +69,7 @@ impl Default for XFinderApp {
             search_results: Vec::new(),
             search_index: None,
             file_watcher: None,
+            audio_player: AudioPlayer::new().ok(),
             index_dir,
             scan_paths: default_paths,
             index_status: IndexStatus::default(),

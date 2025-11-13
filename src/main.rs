@@ -6,6 +6,7 @@ use eframe::egui;
 mod app;
 mod search;
 mod ui;
+mod audio_player;
 
 #[cfg(test)]
 mod app_test;
