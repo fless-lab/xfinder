@@ -189,7 +189,9 @@ pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
                     .speed(1)
                     .clamp_range(app.min_ngram_size..=255));
             });
-            ui.small(format!("N-grams: {}-{} | Rec: 2-20", app.min_ngram_size, app.max_ngram_size));
+            ui.small(format!("Range: {}-{} chars", app.min_ngram_size, app.max_ngram_size));
+            ui.small("Fragments recherche | 2-20: rapide | 2-100: lent+flexible");
+            ui.colored_label(egui::Color32::from_rgb(255, 150, 50), "⚠ Réindexer pour appliquer");
 
             ui.add_space(10.0);
             ui.separator();
