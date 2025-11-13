@@ -587,7 +587,12 @@ impl XFinderApp {
 
         if let Some(ref watcher) = self.file_watcher {
             if let Some(ref index) = self.search_index {
-                match watcher.apply_events_to_index(index) {
+                match watcher.apply_events_to_index(
+                    index,
+                    &self.excluded_extensions,
+                    &self.excluded_patterns,
+                    &self.excluded_dirs
+                ) {
                     Ok(count) if count > 0 => {
                         self.watchdog_update_count += count;
                         self.index_status.file_count += count; // Approximatif

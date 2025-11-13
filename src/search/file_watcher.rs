@@ -112,8 +112,49 @@ impl FileWatcher {
         None
     }
 
-    // Appliquer les événements à l'index
-    pub fn apply_events_to_index(&self, index: &SearchIndex) -> Result<usize> {
+    // Vérifie si un fichier doit être exclu (similaire au scanner)
+    fn should_exclude(
+        path: &Path,
+        filename: &str,
+        excluded_extensions: &[String],
+        excluded_patterns: &[String],
+        excluded_dirs: &[String],
+    ) -> bool {
+        let path_str = path.to_string_lossy().to_string();
+
+        // 1. Vérifier les dossiers exclus
+        for excluded_dir in excluded_dirs {
+            if path_str.starts_with(excluded_dir) || path_str.contains(&format!("\\{}", excluded_dir)) {
+                return true;
+            }
+        }
+
+        // 2. Vérifier les extensions exclues
+        if let Some(ext) = path.extension() {
+            let ext_with_dot = format!(".{}", ext.to_string_lossy());
+            if excluded_extensions.contains(&ext_with_dot) {
+                return true;
+            }
+        }
+
+        // 3. Vérifier les patterns
+        for pattern in excluded_patterns {
+            if path_str.contains(pattern) || filename.contains(pattern) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    // Appliquer les événements à l'index (avec respect des exclusions)
+    pub fn apply_events_to_index(
+        &self,
+        index: &SearchIndex,
+        excluded_extensions: &[String],
+        excluded_patterns: &[String],
+        excluded_dirs: &[String],
+    ) -> Result<usize> {
         let events = self.poll_events();
         let mut updated_count = 0;
 
@@ -123,6 +164,11 @@ impl FileWatcher {
                     if let Some(filename) = path.file_name() {
                         let path_str = path.to_string_lossy().to_string();
                         let filename_str = filename.to_string_lossy().to_string();
+
+                        // Vérifier si le fichier doit être exclu
+                        if Self::should_exclude(&path, &filename_str, excluded_extensions, excluded_patterns, excluded_dirs) {
+                            continue; // Skip ce fichier
+                        }
 
                         if let Ok(mut writer) = index.create_writer() {
                             if index.add_file(&mut writer, &path_str, &filename_str).is_ok() {
@@ -137,12 +183,20 @@ impl FileWatcher {
                         let path_str = path.to_string_lossy().to_string();
                         let filename_str = filename.to_string_lossy().to_string();
 
+                        // Vérifier si le fichier doit être exclu
+                        if Self::should_exclude(&path, &filename_str, excluded_extensions, excluded_patterns, excluded_dirs) {
+                            // Si le fichier est maintenant exclu, le supprimer de l'index
+                            let _ = index.delete_file_by_path(&path_str);
+                            continue;
+                        }
+
                         if index.update_file(&path_str, &filename_str).is_ok() {
                             updated_count += 1;
                         }
                     }
                 }
                 FileEvent::Removed(path) => {
+                    // Toujours supprimer, même si exclu (au cas où il était indexé avant)
                     let path_str = path.to_string_lossy().to_string();
                     if index.delete_file_by_path(&path_str).is_ok() {
                         updated_count += 1;
@@ -153,6 +207,13 @@ impl FileWatcher {
                         let from_str = from.to_string_lossy().to_string();
                         let to_str = to.to_string_lossy().to_string();
                         let filename_str = filename.to_string_lossy().to_string();
+
+                        // Vérifier si le nouveau fichier doit être exclu
+                        if Self::should_exclude(&to, &filename_str, excluded_extensions, excluded_patterns, excluded_dirs) {
+                            // Si renommé vers un nom exclu, supprimer l'ancien
+                            let _ = index.delete_file_by_path(&from_str);
+                            continue;
+                        }
 
                         if index.update_file_path(&from_str, &to_str, &filename_str).is_ok() {
                             updated_count += 1;

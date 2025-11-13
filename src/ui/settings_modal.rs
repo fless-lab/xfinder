@@ -21,16 +21,15 @@ pub fn render_settings_modal(ctx: &egui::Context, app: &mut XFinderApp) {
                 ui.label("Fichiers avec ces extensions ne seront pas indexés");
                 ui.add_space(5.0);
 
-                // Liste des extensions
+                // Liste des extensions (boutons chips)
                 let mut ext_to_remove = None;
-                for (idx, ext) in app.excluded_extensions.iter().enumerate() {
-                    ui.horizontal(|ui| {
-                        ui.label(ext);
-                        if ui.small_button("✖").clicked() {
+                ui.horizontal_wrapped(|ui| {
+                    for (idx, ext) in app.excluded_extensions.iter().enumerate() {
+                        if ui.button(format!("✖ {}", ext)).clicked() {
                             ext_to_remove = Some(idx);
                         }
-                    });
-                }
+                    }
+                });
                 if let Some(idx) = ext_to_remove {
                     app.excluded_extensions.remove(idx);
                 }
@@ -69,16 +68,15 @@ pub fn render_settings_modal(ctx: &egui::Context, app: &mut XFinderApp) {
                 ui.label("Fichiers/dossiers correspondant à ces patterns ne seront pas indexés");
                 ui.add_space(5.0);
 
-                // Liste des patterns
+                // Liste des patterns (boutons chips)
                 let mut pattern_to_remove = None;
-                for (idx, pattern) in app.excluded_patterns.iter().enumerate() {
-                    ui.horizontal(|ui| {
-                        ui.label(pattern);
-                        if ui.small_button("✖").clicked() {
+                ui.horizontal_wrapped(|ui| {
+                    for (idx, pattern) in app.excluded_patterns.iter().enumerate() {
+                        if ui.button(format!("✖ {}", pattern)).clicked() {
                             pattern_to_remove = Some(idx);
                         }
-                    });
-                }
+                    }
+                });
                 if let Some(idx) = pattern_to_remove {
                     app.excluded_patterns.remove(idx);
                 }
@@ -113,15 +111,12 @@ pub fn render_settings_modal(ctx: &egui::Context, app: &mut XFinderApp) {
                 ui.label("Ces dossiers spécifiques ne seront pas indexés");
                 ui.add_space(5.0);
 
-                // Liste des dossiers
+                // Liste des dossiers (boutons, un par ligne car chemins longs)
                 let mut dir_to_remove = None;
                 for (idx, dir) in app.excluded_dirs.iter().enumerate() {
-                    ui.horizontal(|ui| {
-                        ui.label(dir);
-                        if ui.small_button("✖").clicked() {
-                            dir_to_remove = Some(idx);
-                        }
-                    });
+                    if ui.button(format!("✖ {}", dir)).clicked() {
+                        dir_to_remove = Some(idx);
+                    }
                 }
                 if let Some(idx) = dir_to_remove {
                     app.excluded_dirs.remove(idx);
