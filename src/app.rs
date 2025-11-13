@@ -289,6 +289,10 @@ impl XFinderApp {
         };
         let min_ngram_size = self.min_ngram_size;
         let max_ngram_size = self.max_ngram_size;
+        // Cloner les exclusions pour le thread
+        let excluded_extensions = self.excluded_extensions.clone();
+        let excluded_patterns = self.excluded_patterns.clone();
+        let excluded_dirs = self.excluded_dirs.clone();
 
         // Créer le channel de progression
         let (progress_tx, progress_rx) = unbounded::<IndexProgress>();
@@ -321,7 +325,13 @@ impl XFinderApp {
             for path_str in &scan_paths {
                 let scan_path = PathBuf::from(path_str);
 
-                if let Ok(files) = scanner.scan_directory(&scan_path, files_per_path) {
+                if let Ok(files) = scanner.scan_directory(
+                    &scan_path,
+                    files_per_path,
+                    &excluded_extensions,
+                    &excluded_patterns,
+                    &excluded_dirs
+                ) {
                     let total_files = files.len();
 
                     for (i, file) in files.iter().enumerate() {
