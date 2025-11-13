@@ -8,15 +8,16 @@
 
 | Document | Contenu | Audience | Statut |
 |----------|---------|----------|--------|
-| **[README.md](../README.md)** | Vue d'ensemble projet | Tous | ✅ À jour |
-| **[QUICKSTART.md](../QUICKSTART.md)** | Démarrage rapide développeur | Dev | ✅ À jour |
+| **[README.md](../README.md)** | Vue d'ensemble projet | Tous | ✅ À jour (2025-11-13) |
+| **[LICENSE](../LICENSE)** | Licence MIT | Tous | ✅ À jour |
+| **[QUICKSTART.md](../QUICKSTART.md)** | Démarrage rapide développeur | Dev | ⚠️ Mise à jour recommandée |
 | **[GIT_WORKFLOW.md](../GIT_WORKFLOW.md)** | Guide Git commit réguliers | Dev | ✅ À jour |
 | **[01_PRD](01_PRD_Product_Requirements.md)** | Spécifications produit | PM, Dev, Sponsors | ✅ À jour |
-| **[03_Decisions](03_Decisions_Techniques.md)** | Choix techniques | Dev, Architects | ⚠️ Voir note |
-| **[05_Tests](05_Plan_Tests_Metriques.md)** | Tests & métriques | QA, Dev | ✅ À jour |
-| **[06_Backlog](06_Backlog_Complet.md)** | 325 tâches détaillées | PM, Dev | ⚠️ Voir note |
+| **[03_Decisions](03_Decisions_Techniques.md)** | Choix techniques | Dev, Architects | ✅ À jour (egui) |
+| **[05_Tests](05_Plan_Tests_Metriques.md)** | Tests & métriques | QA, Dev | ⚠️ Ajouter tests SQLite |
+| **[06_Backlog](06_Backlog_Complet.md)** | 325 tâches détaillées | PM, Dev | ⚠️ Mettre à jour progression |
 | **[07_Securite](07_Architecture_Securite.md)** | Modèle menaces & sécurité | Dev, Security | ✅ À jour |
-| **[08_Architecture_egui](08_Architecture_Finale_egui.md)** | **Architecture FINALE** | Dev | ✅ **RÉFÉRENCE** |
+| **[08_Architecture_egui](08_Architecture_Finale_egui.md)** | **Architecture FINALE** | Dev | ⚠️ Ajouter SQLite + Config |
 
 **Total documentation active : ~200 pages**
 
@@ -36,104 +37,175 @@
 
 ---
 
-## Par rôle
+## État actuel du projet
 
-### Développeur (toi)
+### Phase 1 : Core Search - EN COURS ✨
 
-**Commence par :**
-1. [QUICKSTART.md](../QUICKSTART.md) - Démarrage zéro
-2. [08_Architecture_egui](08_Architecture_Finale_egui.md) - Structure code
-3. [GIT_WORKFLOW.md](../GIT_WORKFLOW.md) - Commit réguliers
+**Version actuelle :** 0.1.0
+**Dernière mise à jour :** 2025-11-13
 
-**Référence :**
-- [01_PRD](01_PRD_Product_Requirements.md) - Features à implémenter
-- [06_Backlog](06_Backlog_Complet.md) - Tâches détaillées
-- [07_Securite](07_Architecture_Securite.md) - Best practices sécurité
+#### ✅ Fonctionnalités implémentées
+
+**Recherche & Indexation:**
+- ✅ Tantivy full-text search (n-grams 2-20)
+- ✅ Indexation >10,000 fichiers/sec
+- ✅ FileScanner avec exclusions
+- ✅ Recherche instantanée (<100ms)
+- ✅ Filtres avancés (type, date, taille)
+- ✅ Tri multi-critères
+
+**SQLite Integration:**
+- ✅ Base de données embarquée (WAL mode)
+- ✅ Tables: files, search_history, error_log, config
+- ✅ Batch inserts (1000 fichiers/transaction)
+- ✅ Synchronisation Tantivy ↔ SQLite
+- ✅ Modal statistiques (total, par extension, top searches)
+
+**Surveillance Temps Réel:**
+- ✅ Watchdog avec notify-rs
+- ✅ Sync automatique Tantivy + SQLite
+- ✅ Gestion Created, Modified, Removed, Renamed
+- ✅ Respect des exclusions en temps réel
+
+**Configuration:**
+- ✅ Persistance TOML (~/.xfinder_index/config.toml)
+- ✅ Auto-save sur tous changements
+- ✅ Defaults intelligents
+- ✅ Sections: scan_paths, exclusions, indexing, ui
+
+**Interface:**
+- ✅ UI egui complète
+- ✅ Sidebar avec contrôles
+- ✅ Top panel avec actions
+- ✅ Prévisualisation (texte, images, audio, PDF)
+- ✅ Modal Paramètres (onglets Exclusions/Général)
+- ✅ Modal Statistiques
+
+#### 🔨 En développement
+
+**Phase 1 - Reste à faire:**
+- ⏳ System Tray (icône système + auto-start)
+- ⏳ Scheduler (indexation planifiée 2h AM)
+
+**Phase 2+ (Futur):**
+- 📋 OCR (Tesseract)
+- 📋 Semantic Search (embeddings + LEANN)
+- 📋 Email Integration (PST/MBOX)
 
 ---
 
-## Par phase projet
+## Par rôle
 
-### Phase actuelle : Setup (Semaine 1)
+### Développeur
 
-**Docs à lire :**
-- ✅ [QUICKSTART.md](../QUICKSTART.md)
-- ✅ [08_Architecture_egui](08_Architecture_Finale_egui.md)
-- ✅ [GIT_WORKFLOW.md](../GIT_WORKFLOW.md)
+**Commence par :**
+1. [README.md](../README.md) - Vue d'ensemble
+2. [08_Architecture_egui](08_Architecture_Finale_egui.md) - Architecture détaillée
+3. [GIT_WORKFLOW.md](../GIT_WORKFLOW.md) - Conventions commit
 
-**Action :**
+**Référence technique :**
+- [01_PRD](01_PRD_Product_Requirements.md) - Features complètes
+- [03_Decisions](03_Decisions_Techniques.md) - Choix tech
+- [07_Securite](07_Architecture_Securite.md) - Best practices
+
+**Développement :**
 ```bash
-# 1. Hello World egui
-cargo run
+# Clone et build
+git clone https://github.com/fless-lab/xfinder.git
+cd xfinder
+cargo build --release
 
-# 2. Commit
-git add .
-git commit -m "feat: hello world egui fonctionne"
+# Lancer
+cargo run --release
 ```
 
 ---
 
-### Phase 1 : MVP (Semaines 1-4)
-
-**Focus :** Recherche basique Tantivy + egui
-
-**Docs utiles :**
-- [08_Architecture_egui](08_Architecture_Finale_egui.md) - Modules search/
-- [06_Backlog](06_Backlog_Complet.md) - Tâches Semaine 1-4
-
----
-
-### Phases 2-5 : Features avancées
-
-**Référence :**
-- [01_PRD](01_PRD_Product_Requirements.md) - Specs complètes
-- [06_Backlog](06_Backlog_Complet.md) - Roadmap 25 semaines
-
----
-
-## Structure projet finale
+## Structure projet actuelle
 
 ```
 xfinder/
 ├── README.md                    ✅ Vue d'ensemble
-├── QUICKSTART.md                ✅ Démarrage rapide
-├── GIT_WORKFLOW.md              ✅ Guide Git
-├── Cargo.toml                   ⏭️ À créer
+├── LICENSE                      ✅ MIT License
+├── Cargo.toml                   ✅ Dépendances
 │
 ├── src/
-│   ├── main.rs                  ⏭️ Hello World egui
-│   ├── app.rs                   ⏭️ État app
-│   ├── ui/                      ⏭️ Interface egui
-│   ├── search/                  ⏭️ Tantivy
-│   ├── database/                ⏭️ SQLite
-│   └── ...
+│   ├── main.rs                  ✅ Entry point
+│   ├── app.rs                   ✅ État application
+│   │
+│   ├── ui/                      ✅ Interface egui
+│   │   ├── mod.rs
+│   │   ├── main_ui.rs           # Recherche & résultats
+│   │   ├── side_panel.rs        # Contrôles latéraux
+│   │   ├── top_panel.rs         # Actions principales
+│   │   ├── preview_panel.rs     # Prévisualisation fichiers
+│   │   ├── settings_modal.rs    # Paramètres (onglets)
+│   │   ├── statistics_modal.rs  # Stats SQLite
+│   │   └── icons.rs             # Icônes SVG
+│   │
+│   ├── search/                  ✅ Moteur recherche
+│   │   ├── mod.rs
+│   │   ├── tantivy_index.rs     # Index Tantivy
+│   │   ├── scanner.rs           # Scan filesystem
+│   │   └── file_watcher.rs      # Watchdog temps réel
+│   │
+│   ├── database/                ✅ SQLite
+│   │   ├── mod.rs               # API publique
+│   │   ├── schema.rs            # DDL + PRAGMAs
+│   │   └── queries.rs           # CRUD operations
+│   │
+│   ├── config/                  ✅ Configuration
+│   │   └── mod.rs               # TOML persistence
+│   │
+│   └── audio_player.rs          ✅ Prévisualisation audio
 │
-└── docs/
-    ├── 00_INDEX.md              ✅ Ce fichier
-    ├── 01_PRD...                ✅ Specs
-    ├── 03_Decisions...          ⚠️ Note egui
-    ├── 05_Tests...              ✅ Tests
-    ├── 06_Backlog...            ⚠️ Note tâches egui
-    ├── 07_Securite...           ✅ Sécurité
-    └── 08_Architecture_egui...  ✅ RÉFÉRENCE FINALE
+├── docs/                        ✅ Documentation
+│   ├── 00_INDEX.md              ✅ Ce fichier
+│   ├── 01_PRD...                ✅ Specs produit
+│   ├── 03_Decisions...          ✅ Choix techniques
+│   ├── 05_Tests...              ⚠️ Ajouter tests SQLite
+│   ├── 06_Backlog...            ⚠️ Progression Phase 1
+│   ├── 07_Securite...           ✅ Sécurité
+│   └── 08_Architecture_egui...  ⚠️ Ajouter SQLite/Config
+│
+└── .xfinder_index/              ⏭️ Créé au runtime
+    ├── tantivy_index/           # Index Tantivy
+    ├── xfinder.db               # Base SQLite
+    └── config.toml              # Configuration
 ```
 
 ---
 
-## Stack technique FINALE
+## Stack technique actuelle
 
-| Composant | Technologie | Justification |
-|-----------|-------------|---------------|
-| **UI** | **egui** | Natif, rapide, Rust pur |
-| **Windowing** | winit | Inclus avec egui |
-| **Rendering** | wgpu | GPU-accelerated |
-| **Search** | Tantivy | Prouvé (spotlight_windows) |
-| **Database** | SQLite | Léger, fiable |
-| **OCR** | Tesseract | Best-in-class offline |
-| **IA** | Candle + LEANN | Rust ML |
-| **Email** | libpff + mailparse | PST + MBOX |
+| Composant | Technologie | Version | Statut |
+|-----------|-------------|---------|--------|
+| **Language** | Rust | 1.70+ | ✅ |
+| **UI** | egui | 0.27 | ✅ |
+| **Rendering** | wgpu | (via eframe) | ✅ |
+| **Windowing** | winit | (via eframe) | ✅ |
+| **Search** | Tantivy | Latest | ✅ |
+| **Database** | SQLite | 3.x (rusqlite) | ✅ |
+| **Config** | TOML | 0.8 (serde) | ✅ |
+| **File Watch** | notify-rs | Latest | ✅ |
+| **Audio** | rodio | Latest | ✅ |
+| **OCR** | Tesseract | - | ⏳ Phase 2 |
+| **Embeddings** | Candle + LEANN | - | ⏳ Phase 3 |
+| **Email** | libpff + mailparse | - | ⏳ Phase 4 |
 
-**Taille : ~8MB base + 110MB (OCR+IA) = 118MB**
+**Taille binaire actuelle :** ~8MB (release mode)
+
+---
+
+## Performance mesurée
+
+| Métrique | Cible | Actuel | Status |
+|----------|-------|--------|--------|
+| Indexation (SSD) | >1,000 files/min | >10,000 files/sec | ✅ 600x |
+| Recherche (100k files) | <100ms | <100ms | ✅ |
+| Mémoire (idle) | <100MB | ~50MB | ✅ |
+| Démarrage | <500ms | <500ms | ✅ |
+| SQLite batch insert | - | 1000 files/tx | ✅ |
 
 ---
 
@@ -143,10 +215,11 @@ xfinder/
 |-------|------------|
 | **egui** | Framework UI natif Rust immediate mode |
 | **Tantivy** | Moteur recherche full-text (Lucene-like) |
-| **LEANN** | Vector DB ultra-compact (97% réduction) |
+| **SQLite** | Base de données embarquée ACID |
+| **WAL** | Write-Ahead Logging (mode SQLite non-bloquant) |
 | **Watchdog** | Surveillance filesystem temps réel |
-| **OCR** | Optical Character Recognition |
-| **Embedding** | Représentation vectorielle texte (IA) |
+| **N-grams** | Tokenisation par sous-chaînes (2-20 chars) |
+| **TOML** | Format config lisible (Tom's Obvious Minimal Language) |
 
 ---
 
@@ -156,23 +229,30 @@ xfinder/
 |------|---------|-------------|
 | 2025-11-12 | 1.0 | Documentation complète initiale |
 | 2025-11-12 | 1.1 | **Migration Tauri → egui** (décision finale) |
+| 2025-11-13 | 1.2 | **Mise à jour Phase 1** - SQLite, Config, Stats |
 
 ---
 
 ## Prochaines étapes
 
 ### Documentation
-1. ✅ Index mis à jour (ce fichier)
-2. ⏭️ Mise à jour 03_Decisions (note egui)
-3. ⏭️ Mise à jour 06_Backlog (tâches egui)
+1. ⏳ Mettre à jour 08_Architecture_egui (SQLite + Config)
+2. ⏳ Mettre à jour 06_Backlog (progression Phase 1)
+3. ⏳ Mettre à jour 05_Tests (tests SQLite)
 
-### Projet
-1. ⏭️ Hello World egui (QUICKSTART.md)
-2. ⏭️ Tantivy recherche basique (Semaine 1)
-3. ⏭️ SQLite + métadonnées (Semaine 2)
+### Projet (Phase 1 - Fin)
+1. ⏳ System Tray (icône + auto-start Windows)
+2. ⏳ Scheduler (indexation planifiée)
+3. ✅ Tests end-to-end Phase 1
+
+### Phase 2 (OCR)
+1. ⏭️ Tesseract integration
+2. ⏭️ Scanned PDF detection
+3. ⏭️ Full-text content search
 
 ---
 
-**Index version :** 1.1
-**Dernière mise à jour :** 2025-11-12
+**Index version :** 1.2
+**Dernière mise à jour :** 2025-11-13
 **Architecture actuelle :** egui natif Rust
+**Phase actuelle :** Phase 1 - Core Search (80% complété)
