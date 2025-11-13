@@ -11,13 +11,12 @@ pub fn render_settings_modal(ctx: &egui::Context, app: &mut XFinderApp) {
 
     egui::Window::new("⚙️ Paramètres")
         .collapsible(false)
-        .resizable(true)
-        .default_width(800.0)
-        .default_height(600.0)
+        .resizable(false)
+        .fixed_size([800.0, 550.0])
         .show(ctx, |ui| {
-            // Layout vertical principal
+            // Layout vertical principal avec hauteur contrainte
             ui.vertical(|ui| {
-                // Top: Sélecteur d'onglets horizontal
+                // Top: Sélecteur d'onglets horizontal (hauteur fixe ~40px)
                 ui.horizontal(|ui| {
                     ui.heading("Paramètres");
                     ui.add_space(20.0);
@@ -31,11 +30,12 @@ pub fn render_settings_modal(ctx: &egui::Context, app: &mut XFinderApp) {
                 });
 
                 ui.separator();
-                ui.add_space(10.0);
+                ui.add_space(5.0);
 
-                // Contenu scrollable
+                // Contenu scrollable avec hauteur fixe (550 - 40 header - 50 footer = ~460px)
                 egui::ScrollArea::vertical()
-                    .auto_shrink([false, false])
+                    .max_height(450.0)
+                    .auto_shrink([false, true])
                     .show(ui, |ui| {
                         match app.settings_tab {
                             SettingsTab::Exclusions => render_exclusions_tab(ui, app),
@@ -43,10 +43,10 @@ pub fn render_settings_modal(ctx: &egui::Context, app: &mut XFinderApp) {
                         }
                     });
 
-                ui.add_space(10.0);
+                ui.add_space(5.0);
                 ui.separator();
 
-                // Footer avec boutons
+                // Footer avec boutons (hauteur fixe ~40px)
                 ui.horizontal(|ui| {
                     if ui.button("✓ Fermer").clicked() {
                         app.show_settings_modal = false;
