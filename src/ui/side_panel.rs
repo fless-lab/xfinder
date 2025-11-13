@@ -8,6 +8,8 @@ pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
     egui::SidePanel::left("side_panel")
         .min_width(280.0)
         .show(ctx, |ui| {
+            // Rendre tout le contenu scrollable verticalement
+            egui::ScrollArea::vertical().show(ui, |ui| {
             ui.add_space(10.0);
             ui.heading("Statut de l'Index");
             ui.add_space(10.0);
@@ -168,45 +170,33 @@ pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
             ui.add_space(10.0);
 
             // Configuration des n-grams (min et max)
-            ui.label("Configuration N-grams (recherche):");
-            ui.label(format!("Range actuelle: {}-{} caractères", app.min_ngram_size, app.max_ngram_size));
+            ui.label(format!("N-grams: {}-{} chars", app.min_ngram_size, app.max_ngram_size));
 
-            ui.add_space(5.0);
-
-            // Inputs pour min et max
+            // Layout horizontal compact: [Min box] [Slider Min] [Slider Max] [Max box]
             ui.horizontal(|ui| {
-                ui.label("Min:");
                 ui.add(egui::DragValue::new(&mut app.min_ngram_size)
                     .speed(1)
-                    .clamp_range(1..=app.max_ngram_size));
+                    .clamp_range(1..=app.max_ngram_size)
+                    .prefix("Min: "));
 
-                ui.label("Max:");
-                ui.add(egui::DragValue::new(&mut app.max_ngram_size)
-                    .speed(1)
-                    .clamp_range(app.min_ngram_size..=255));
+                ui.add(egui::Slider::new(&mut app.min_ngram_size, 1..=app.max_ngram_size)
+                    .show_value(false));
             });
 
-            // Sliders individuels pour visualisation
-            ui.label("Min:");
-            ui.add(egui::Slider::new(&mut app.min_ngram_size, 1..=app.max_ngram_size)
-                .show_value(false));
+            ui.horizontal(|ui| {
+                ui.add(egui::DragValue::new(&mut app.max_ngram_size)
+                    .speed(1)
+                    .clamp_range(app.min_ngram_size..=255)
+                    .prefix("Max: "));
 
-            ui.label("Max:");
-            ui.add(egui::Slider::new(&mut app.max_ngram_size, app.min_ngram_size..=255)
-                .show_value(false));
+                ui.add(egui::Slider::new(&mut app.max_ngram_size, app.min_ngram_size..=255)
+                    .show_value(false));
+            });
 
-            ui.add_space(5.0);
-
-            // Aide contextuelle
-            ui.small("Min = taille minimum fragment (généralement 2)");
-            ui.small("Max = taille maximum requête supportée");
-            ui.small("↑ Range large = indexation lente mais flexible");
-            ui.small("↓ Range étroite = indexation rapide mais limitée");
-            ui.small("Recommandé: 2-20 (bon équilibre)");
-
+            ui.small("Rec: 2-20 | Large=lent+flex | Etroit=rapide+limité");
             ui.colored_label(
                 egui::Color32::from_rgb(255, 200, 100),
-                "⚠ Nécessite une nouvelle indexation pour appliquer"
+                "⚠ Réindexer pour appliquer"
             );
 
             ui.add_space(10.0);
@@ -272,5 +262,6 @@ pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
             if app.watchdog_enabled {
                 ui.label("Detection auto: ajout/modification/suppression");
             }
+            }); // Fin du ScrollArea
         });
 }
