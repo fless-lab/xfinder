@@ -16,6 +16,8 @@ pub fn render_preview_panel(ctx: &egui::Context, app: &mut XFinderApp) {
     egui::Window::new("Previsualisation")
         .default_width(600.0)
         .default_height(500.0)
+        .max_width(800.0)
+        .max_height(700.0)
         .resizable(true)
         .collapsible(false)
         .show(ctx, |ui| {
@@ -173,13 +175,13 @@ fn render_image_preview(ui: &mut egui::Ui, file_path: &str) {
                 egui::TextureOptions::default()
             );
 
-            // IMPORTANT: S'adapter au container, ne pas imposer la taille
-            let available_width = ui.available_width();
+            // S'adapter au container avec taille max pour ne pas agrandir la fenêtre
+            let available_width = ui.available_width().min(750.0);
             let available_height = 400.0; // Hauteur max raisonnable
 
             ui.add(
                 egui::Image::new(&texture)
-                    .fit_to_exact_size(egui::vec2(available_width, available_height))
+                    .max_size(egui::vec2(available_width, available_height))
                     .shrink_to_fit()
             );
         }
