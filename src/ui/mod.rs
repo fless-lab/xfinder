@@ -5,9 +5,11 @@ mod main_panel;
 mod side_panel;
 mod top_panel;
 mod preview_panel;
+mod settings_modal;
 pub mod icons;
 
 pub use main_panel::render_main_ui;
 pub use side_panel::render_side_panel;
 pub use top_panel::render_top_panel;
 pub use preview_panel::render_preview_panel;
+pub use settings_modal::render_settings_modal;
