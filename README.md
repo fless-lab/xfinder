@@ -1,98 +1,189 @@
 # xfinder
 
-**Moteur de recherche de fichiers ultra-rapide avec surveillance temps réel**
+**Advanced file search and retrieval system for Windows (will be extended to other OS) administrative environments**
 
-## Description
+## Overview
 
-xfinder est une application de recherche de fichiers native pour Windows, conçue pour indexer et retrouver instantanément des fichiers parmi des milliers de documents. Interface moderne, performance maximale.
+xfinder is a high-performance desktop search application designed for administrative users who need to locate files and information quickly across large document repositories. Built with Rust and native UI technologies, it provides enterprise-grade search capabilities in a lightweight package.
 
-## Fonctionnalités
+## Key Features
 
-- **Recherche instantanée**: Résultats en <100ms sur 100k+ fichiers (Tantivy)
-- **Surveillance temps réel**: Le watchdog met à jour l'index automatiquement
-- **Métadonnées SQLite**: Statistiques et historique persistants
-- **Filtres avancés**: Type, date, taille, extension
-- **Configuration persistante**: Paramètres sauvegardés automatiquement (TOML)
-- **Prévisualisation**: Texte, images, audio, PDF
-- **Exclusions**: Extensions, patterns, dossiers personnalisables
+- **Fast Indexing**: Full-text search engine powered by Tantivy with sub-100ms query response time
+- **Real-time Monitoring**: Automatic file system watching and index updates
+- **Semantic Search**: AI-powered search understanding natural language queries
+- **Email Integration**: Unified search across Outlook PST files, Thunderbird MBOX, and IMAP accounts
+- **OCR Support**: Automatic text extraction from scanned PDFs and images (Tesseract 5)
+- **Conversational Interface**: "Assist Me" mode providing contextual answers with verifiable sources
 
-## Installation
+---
+
+## Core Capabilities
+
+### File Search
+- Instant filename search with sub-100ms response for 100k+ files
+- Fuzzy matching algorithm for typo-tolerant queries
+- Advanced filtering by extension, date, size, and directory
+- Global keyboard shortcut access (Ctrl+Shift+F)
+
+### Content Indexing
+- Full-text search across document contents (SQLite FTS5)
+- Automatic detection and indexing of scanned PDFs
+- OCR text extraction from images (JPEG, PNG, TIFF)
+- Configurable by directory and file type
+- Multi-language support (French and English priority)
+
+### Semantic Search
+- Natural language query understanding
+- Vector-based similarity search using compact embeddings (LEANN)
+- Conversational "Assist Me" mode with source attribution
+- 97% smaller index size compared to traditional vector databases
+
+### Email Search
+- Outlook PST/MAPI integration
+- Thunderbird MBOX parsing
+- IMAP and Exchange server support
+- Attachment indexing and search
+
+### Real-time Updates
+- File system monitoring via watchdog
+- Automatic index updates on file creation, modification, and deletion
+- Intelligent handling of file moves and renames
+- Scheduled indexing with configurable intervals
+
+---
+
+## Technology Stack
+
+| Component | Technology | Rationale |
+|-----------|------------|-----------|
+| **Language** | Rust | Memory safety, performance, concurrency |
+| **UI Framework** | egui | Native, lightweight, GPU-accelerated |
+| **Windowing** | winit | Cross-platform window management |
+| **Rendering** | wgpu | Hardware-accelerated graphics |
+| **Search Engine** | Tantivy | Lucene-like full-text search in Rust |
+| **Database** | SQLite with FTS5 | Embedded, ACID-compliant, full-text capable |
+| **Embeddings** | all-MiniLM-L6-v2 | Compact (80MB), multilingual, 384 dimensions |
+| **Vector Database** | LEANN | Ultra-compact indices (97% size reduction) |
+| **OCR** | Tesseract 5 | Industry standard, offline, multi-language |
+| **File Monitoring** | notify-rs | Cross-platform filesystem events |
+| **Email Parsing** | mailparse, libpff | PST and MBOX format support |
+
+**Binary Size**: ~8MB base + 110MB (OCR + ML models) = 118MB total
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                 UI Layer (egui)                         │
+│    Search Interface | Configuration | Assist Me Mode    │
+└────────────────────┬────────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────────┐
+│              Core Application (Rust)                    │
+│                                                          │
+│  File System Watchdog → Indexer → Content Extractor    │
+│  Search Engine: Tantivy + SQLite FTS5 + LEANN          │
+│  Email Parser: PST/MBOX/IMAP                            │
+└────────────────────┬────────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────────┐
+│              Storage Layer                              │
+│  tantivy_index/ | metadata.db (SQLite) | vectors.leann │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Getting Started
+
+### For Developers
 
 ```bash
-# Prérequis
+# Prerequisites
 rustc >= 1.70
 cargo >= 1.70
 
-# Clone et build
+# Clone and build
 git clone https://github.com/fless-lab/xfinder.git
 cd xfinder
 cargo build --release
 
-# Lancer
-cargo run --release
+# Run tests
+cargo test
+
+# Launch application
+cargo run
 ```
 
-L'exécutable se trouve dans `target/release/xfinder.exe` (~8MB)
+See [QUICKSTART.md](QUICKSTART.md) for detailed setup instructions.
 
-## Utilisation
+### For End Users (Future)
 
-1. **Premier lancement**: Sélectionner les dossiers à indexer
-2. **Indexation**: Cliquer "Nouvelle indexation" (ou "Refresh" pour mise à jour)
-3. **Recherche**: Taper dans la barre de recherche
-4. **Watchdog**: Activer la surveillance automatique dans la sidebar
-5. **Paramètres**: Configurer exclusions et options via ⚙️
+```bash
+# Installation
+Download xfinder-setup.msi from releases
+Run installer and follow prompts
 
-## Configuration
-
-Fichier: `~/.xfinder_index/config.toml`
-
-```toml
-scan_paths = ["C:\\Users\\fless-lab\\Downloads"]
-
-[exclusions]
-extensions = [".tmp", ".log", ".cache"]
-patterns = ["node_modules", ".git", "__pycache__"]
-dirs = []
-
-[indexing]
-min_ngram_size = 2
-max_ngram_size = 20
-max_files_to_index = 100000
-no_file_limit = false
-
-[ui]
-results_display_limit = 50
-watchdog_enabled = false
+# First Use
+1. Launch xfinder
+2. Select directories to monitor
+3. Start indexing
+4. Search using Ctrl+Shift+F
 ```
-
-## Technologies
-
-| Composant | Tech |
-|-----------|------|
-| Language | Rust |
-| UI | egui + wgpu |
-| Indexation | Tantivy |
-| Base de données | SQLite (WAL mode) |
-| Surveillance | notify-rs |
-| Config | TOML + serde |
-
-## Performance
-
-- **Indexation**: >10,000 fichiers/sec (SSD)
-- **Recherche**: <100ms (P95)
-- **Mémoire (idle)**: ~50MB
-- **Démarrage**: <500ms
-
-## Licence
-
-MIT License - Voir [LICENSE](LICENSE)
-
-## Status
-
-**Version**: 0.1.0
-**Phase**: Core Search (Phase 1)
-**Dernière mise à jour**: 2025-11-13
 
 ---
 
-Construit avec Rust 🦀
+## Performance Targets
+
+| Metric | Target | Measurement |
+|--------|--------|-------------|
+| Search query (100k files) | <100ms | P95 latency |
+| Indexing throughput | >1000 files/min | Average on SSD |
+| OCR processing (A4 page) | <5s | PaddleOCR/Tesseract standard quality |
+| Semantic search | <3s | Including embedding generation |
+| Index size overhead | <5% of corpus | Metadata + vectors |
+| Memory footprint (idle) | <100MB | Application only |
+| Cold start time | <500ms | To main window display |
+
+---
+
+## Design Decisions
+
+### Language Priority
+Multi-language support with French and English as primary targets. OCR and semantic search models selected for optimal French performance.
+
+### Vector Database
+LEANN selected for 97% index size reduction compared to FAISS. Proof-of-concept validation scheduled for Week 13-14.
+
+### Email Parsing Strategy
+- Primary: Windows MAPI API (requires Outlook installation)
+- Fallback: libpff library for direct PST parsing
+- Thunderbird: mailparse crate for MBOX files
+
+### Network Drives
+UNC path monitoring (`\\Server\Share`) supported via same watchdog mechanism as local drives.
+
+### GPU Acceleration
+Optional CUDA support for embedding generation provides 10x speed improvement at cost of 500MB additional dependencies. Disabled by default.
+
+---
+
+## Contributing
+
+Project currently in active development. Contributions welcome after Phase 1 MVP completion.
+
+## License
+
+To be determined (likely GPL-3.0 or Apache-2.0)
+
+## Project Status
+
+**Current Phase**: Phase 1 - Core Search Implementation (Week 1)
+**Last Updated**: 2025-11-12
+**Version**: 0.1.0-alpha
+
+---
+
+Built with Rust for performance, security, and reliability.
