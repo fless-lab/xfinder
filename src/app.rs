@@ -106,6 +106,20 @@ impl SortBy {
     }
 }
 
+// Onglets de la fenêtre de paramètres
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SettingsTab {
+    Exclusions,
+    Indexation,
+    Interface,
+}
+
+impl Default for SettingsTab {
+    fn default() -> Self {
+        SettingsTab::Exclusions
+    }
+}
+
 pub struct XFinderApp {
     pub search_query: String,
     pub search_results: Vec<SearchResult>,      // Résultats filtrés/triés (affichés)
@@ -148,6 +162,7 @@ pub struct XFinderApp {
     // UI state
     pub show_settings_modal: bool,         // Afficher la fenêtre de paramètres
     pub show_statistics_modal: bool,       // Afficher la fenêtre de statistiques
+    pub settings_tab: SettingsTab,         // Onglet actif dans les paramètres
     pub new_extension_input: String,       // Input temporaire pour ajouter une extension
     pub new_pattern_input: String,         // Input temporaire pour ajouter un pattern
     pub editing_date_filter: bool,         // Mode édition pour le filtre de date
@@ -240,6 +255,7 @@ impl Default for XFinderApp {
             // UI state
             show_settings_modal: false,
             show_statistics_modal: false,
+            settings_tab: SettingsTab::default(),
             new_extension_input: String::new(),
             new_pattern_input: String::new(),
             editing_date_filter: false,
