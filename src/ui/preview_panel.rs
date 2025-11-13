@@ -3,6 +3,7 @@
 
 use eframe::egui;
 use crate::app::XFinderApp;
+use crate::ui::icons;
 use std::path::Path;
 
 pub fn render_preview_panel(ctx: &egui::Context, app: &mut XFinderApp) {
@@ -95,9 +96,11 @@ fn render_file_preview(ui: &mut egui::Ui, file_path: &str, metadata: &std::fs::M
 
     // Afficher l'icône et le type
     ui.horizontal(|ui| {
-        ui.label(egui::RichText::new(get_file_icon(&extension)).size(48.0));
+        // Icône SVG monochromes'adapte au thème
+        render_file_icon_svg(ui, &extension);
+        ui.add_space(10.0);
         ui.vertical(|ui| {
-            ui.label(format!("Type: {}", get_file_type(&extension)));
+            ui.label(egui::RichText::new(get_file_type(&extension)).size(16.0).strong());
             ui.label(format!("Extension: .{}", extension));
         });
     });
@@ -260,21 +263,76 @@ fn get_file_type(extension: &str) -> &str {
     }
 }
 
-fn get_file_icon(extension: &str) -> &str {
+fn render_file_icon_svg(ui: &mut egui::Ui, extension: &str) {
+    // Dessiner icone directement avec egui painter (monochrome adapte au theme)
+    let (response, painter) = ui.allocate_painter(
+        egui::vec2(48.0, 48.0),
+        egui::Sense::hover()
+    );
+
+    let rect = response.rect;
+    let color = ui.style().visuals.text_color();
+    let stroke = egui::Stroke::new(2.0, color);
+
+    // Dessiner selon le type de fichier
     match extension {
-        "txt" | "md" | "log" => "[TXT]",
-        "json" | "xml" | "csv" | "toml" | "yaml" | "yml" => "[CFG]",
-        "rs" | "py" | "js" | "ts" | "java" | "c" | "cpp" | "h" => "[CODE]",
-        "pdf" => "[PDF]",
-        "png" | "jpg" | "jpeg" | "gif" | "bmp" | "ico" | "webp" | "svg" => "[IMG]",
-        "mp3" | "wav" | "ogg" | "flac" => "[AUDIO]",
-        "mp4" | "avi" | "mkv" | "mov" | "wmv" => "[VIDEO]",
-        "zip" | "rar" | "7z" | "tar" | "gz" => "[ZIP]",
-        "exe" | "msi" => "[EXE]",
-        "dll" | "so" => "[LIB]",
-        "doc" | "docx" => "[DOC]",
-        "xls" | "xlsx" => "[XLS]",
-        "ppt" | "pptx" => "[PPT]",
-        _ => "[FILE]",
+        "png" | "jpg" | "jpeg" | "gif" | "bmp" | "ico" | "webp" | "svg" => {
+            // Image: rectangle avec cercle
+            painter.rect_stroke(rect.shrink(4.0), 2.0, stroke);
+            painter.circle_filled(rect.center() + egui::vec2(-10.0, -8.0), 4.0, color);
+            painter.line_segment([rect.left_bottom() + egui::vec2(4.0, -4.0), rect.center() + egui::vec2(0.0, 8.0)], stroke);
+            painter.line_segment([rect.center() + egui::vec2(0.0, 8.0), rect.right_bottom() + egui::vec2(-4.0, -4.0)], stroke);
+        }
+        "mp3" | "wav" | "ogg" | "flac" => {
+            // Audio: note de musique
+            painter.circle_filled(rect.center() + egui::vec2(-6.0, 12.0), 6.0, color);
+            painter.line_segment([rect.center() + egui::vec2(0.0, 12.0), rect.center() + egui::vec2(0.0, -12.0)], egui::Stroke::new(3.0, color));
+            painter.line_segment([rect.center() + egui::vec2(0.0, -12.0), rect.center() + egui::vec2(10.0, -8.0)], egui::Stroke::new(3.0, color));
+        }
+        "mp4" | "avi" | "mkv" | "mov" | "wmv" => {
+            // Video: rectangle + triangle play
+            painter.rect_stroke(rect.shrink(4.0), 2.0, stroke);
+            let triangle = vec![
+                rect.center() + egui::vec2(-6.0, -8.0),
+                rect.center() + egui::vec2(-6.0, 8.0),
+                rect.center() + egui::vec2(8.0, 0.0),
+            ];
+            painter.add(egui::Shape::convex_polygon(triangle, color, egui::Stroke::NONE));
+        }
+        "zip" | "rar" | "7z" | "tar" | "gz" => {
+            // Archive: boite
+            painter.rect_stroke(rect.shrink(8.0), 2.0, stroke);
+            painter.line_segment([rect.center_top() + egui::vec2(0.0, 8.0), rect.center_bottom() + egui::vec2(0.0, -8.0)], stroke);
+        }
+        "exe" | "msi" => {
+            // Executable: engrenage
+            painter.circle_stroke(rect.center(), 12.0, stroke);
+            for i in 0..8 {
+                let angle = (i as f32 / 8.0) * std::f32::consts::TAU;
+                let start = rect.center() + egui::vec2(angle.cos(), angle.sin()) * 12.0;
+                let end = rect.center() + egui::vec2(angle.cos(), angle.sin()) * 18.0;
+                painter.line_segment([start, end], stroke);
+            }
+        }
+        "rs" | "py" | "js" | "ts" | "java" | "c" | "cpp" | "h" => {
+            // Code: chevrons <>
+            painter.line_segment([rect.center() + egui::vec2(-12.0, 0.0), rect.center() + egui::vec2(-18.0, -12.0)], stroke);
+            painter.line_segment([rect.center() + egui::vec2(-12.0, 0.0), rect.center() + egui::vec2(-18.0, 12.0)], stroke);
+            painter.line_segment([rect.center() + egui::vec2(12.0, 0.0), rect.center() + egui::vec2(18.0, -12.0)], stroke);
+            painter.line_segment([rect.center() + egui::vec2(12.0, 0.0), rect.center() + egui::vec2(18.0, 12.0)], stroke);
+        }
+        _ => {
+            // Fichier par defaut: document
+            let points = vec![
+                rect.left_top() + egui::vec2(6.0, 4.0),
+                rect.right_top() + egui::vec2(-12.0, 4.0),
+                rect.right_top() + egui::vec2(-6.0, 10.0),
+                rect.right_bottom() + egui::vec2(-6.0, -4.0),
+                rect.left_bottom() + egui::vec2(6.0, -4.0),
+            ];
+            painter.add(egui::Shape::closed_line(points, stroke));
+            painter.line_segment([rect.center() + egui::vec2(-8.0, 2.0), rect.center() + egui::vec2(8.0, 2.0)], stroke);
+            painter.line_segment([rect.center() + egui::vec2(-8.0, 8.0), rect.center() + egui::vec2(8.0, 8.0)], stroke);
+        }
     }
 }
