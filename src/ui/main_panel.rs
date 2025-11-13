@@ -63,6 +63,60 @@ pub fn render_main_ui(ctx: &egui::Context, app: &mut XFinderApp) {
 
         ui.add_space(10.0);
 
+        // Filtres et tri
+        ui.label("Filtres:");
+        let mut filters_changed = false;
+        ui.horizontal(|ui| {
+            // Type de fichier
+            ui.label("Type:");
+            let old_type = app.filter_file_type;
+            egui::ComboBox::from_id_source("filter_type")
+                .selected_text(app.filter_file_type.label())
+                .show_ui(ui, |ui| {
+                    use crate::app::FileTypeFilter;
+                    ui.selectable_value(&mut app.filter_file_type, FileTypeFilter::All, FileTypeFilter::All.label());
+                    ui.selectable_value(&mut app.filter_file_type, FileTypeFilter::Documents, FileTypeFilter::Documents.label());
+                    ui.selectable_value(&mut app.filter_file_type, FileTypeFilter::Images, FileTypeFilter::Images.label());
+                    ui.selectable_value(&mut app.filter_file_type, FileTypeFilter::Videos, FileTypeFilter::Videos.label());
+                    ui.selectable_value(&mut app.filter_file_type, FileTypeFilter::Audio, FileTypeFilter::Audio.label());
+                    ui.selectable_value(&mut app.filter_file_type, FileTypeFilter::Archives, FileTypeFilter::Archives.label());
+                    ui.selectable_value(&mut app.filter_file_type, FileTypeFilter::Code, FileTypeFilter::Code.label());
+                    ui.selectable_value(&mut app.filter_file_type, FileTypeFilter::Other, FileTypeFilter::Other.label());
+                });
+            if old_type != app.filter_file_type {
+                filters_changed = true;
+            }
+
+            ui.separator();
+
+            // Trier par
+            ui.label("Trier:");
+            let old_sort = app.sort_by;
+            egui::ComboBox::from_id_source("sort_by")
+                .selected_text(app.sort_by.label())
+                .show_ui(ui, |ui| {
+                    use crate::app::SortBy;
+                    ui.selectable_value(&mut app.sort_by, SortBy::Relevance, SortBy::Relevance.label());
+                    ui.selectable_value(&mut app.sort_by, SortBy::NameAsc, SortBy::NameAsc.label());
+                    ui.selectable_value(&mut app.sort_by, SortBy::NameDesc, SortBy::NameDesc.label());
+                    ui.selectable_value(&mut app.sort_by, SortBy::DateDesc, SortBy::DateDesc.label());
+                    ui.selectable_value(&mut app.sort_by, SortBy::DateAsc, SortBy::DateAsc.label());
+                    ui.selectable_value(&mut app.sort_by, SortBy::SizeDesc, SortBy::SizeDesc.label());
+                    ui.selectable_value(&mut app.sort_by, SortBy::SizeAsc, SortBy::SizeAsc.label());
+                });
+            if old_sort != app.sort_by {
+                filters_changed = true;
+            }
+        });
+
+        // Re-filtrer et re-trier si changement
+        if filters_changed && !app.search_results.is_empty() {
+            // Relancer la recherche pour réappliquer les filtres
+            app.perform_search();
+        }
+
+        ui.add_space(5.0);
+
         // Messages d'erreur ou de succès
         if let Some(ref msg) = app.error_message {
             ui.colored_label(egui::Color32::from_rgb(200, 100, 50), msg);
@@ -82,12 +136,19 @@ pub fn render_main_ui(ctx: &egui::Context, app: &mut XFinderApp) {
         ));
         ui.add_space(5.0);
 
-        egui::ScrollArea::vertical().show(ui, |ui| {
+        egui::ScrollArea::vertical()
+            .auto_shrink([false, true])
+            .show(ui, |ui| {
+            // Force toute la largeur disponible
+            ui.set_width(ui.available_width());
+
             // N'afficher que jusqu'à la limite
             for (idx, result) in app.search_results.iter()
                 .take(app.results_display_limit)
                 .enumerate() {
+                ui.push_id(idx, |ui| {
                 ui.group(|ui| {
+                    ui.set_width(ui.available_width());
                     ui.horizontal(|ui| {
                         ui.label(format!("#{}", idx + 1));
                         ui.separator();
@@ -138,10 +199,15 @@ pub fn render_main_ui(ctx: &egui::Context, app: &mut XFinderApp) {
                                         }
                                     }
                                 }
+                                if ui.button("Copier chemin").clicked() {
+                                    // Copier le chemin dans le presse-papiers
+                                    ui.output_mut(|o| o.copied_text = result.path.clone());
+                                }
                             });
                         });
                     });
                 });
+                }); // Fin push_id
                 ui.add_space(5.0);
             }
 

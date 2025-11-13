@@ -9,6 +9,7 @@ use crossbeam_channel::{unbounded, Receiver, Sender};
 use crate::search::{FileScanner, SearchIndex, SearchResult, FileWatcher, SearchOptions};
 use crate::ui::{render_main_ui, render_side_panel, render_top_panel, render_preview_panel};
 use crate::audio_player::AudioPlayer;
+use chrono::{DateTime, Local, NaiveDate};
 
 // Message de progression de l'indexation
 #[derive(Debug, Clone)]
@@ -16,6 +17,91 @@ pub struct IndexProgress {
     pub indexed_count: usize,
     pub total_files: usize,
     pub current_path: String,
+}
+
+// Type de fichier pour filtrage
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FileTypeFilter {
+    All,
+    Documents,  // pdf, docx, txt, md, odt, rtf
+    Images,     // jpg, png, gif, svg, bmp, webp
+    Videos,     // mp4, avi, mkv, mov, wmv
+    Audio,      // mp3, wav, ogg, flac, m4a
+    Archives,   // zip, rar, 7z, tar, gz
+    Code,       // rs, js, py, java, cpp, etc.
+    Other,
+}
+
+impl FileTypeFilter {
+    pub fn matches(&self, filename: &str) -> bool {
+        let ext = std::path::Path::new(filename)
+            .extension()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+
+        match self {
+            FileTypeFilter::All => true,
+            FileTypeFilter::Documents => matches!(ext.as_str(),
+                "pdf" | "docx" | "doc" | "txt" | "md" | "odt" | "rtf" | "xlsx" | "xls" | "pptx" | "ppt"),
+            FileTypeFilter::Images => matches!(ext.as_str(),
+                "jpg" | "jpeg" | "png" | "gif" | "svg" | "bmp" | "webp" | "ico" | "tiff"),
+            FileTypeFilter::Videos => matches!(ext.as_str(),
+                "mp4" | "avi" | "mkv" | "mov" | "wmv" | "flv" | "webm" | "m4v"),
+            FileTypeFilter::Audio => matches!(ext.as_str(),
+                "mp3" | "wav" | "ogg" | "flac" | "m4a" | "wma" | "aac"),
+            FileTypeFilter::Archives => matches!(ext.as_str(),
+                "zip" | "rar" | "7z" | "tar" | "gz" | "bz2" | "xz"),
+            FileTypeFilter::Code => matches!(ext.as_str(),
+                "rs" | "js" | "ts" | "py" | "java" | "cpp" | "c" | "h" | "cs" | "go" | "rb" | "php" | "html" | "css" | "json" | "xml"),
+            FileTypeFilter::Other => !matches!(self, FileTypeFilter::All) &&
+                !FileTypeFilter::Documents.matches(filename) &&
+                !FileTypeFilter::Images.matches(filename) &&
+                !FileTypeFilter::Videos.matches(filename) &&
+                !FileTypeFilter::Audio.matches(filename) &&
+                !FileTypeFilter::Archives.matches(filename) &&
+                !FileTypeFilter::Code.matches(filename),
+        }
+    }
+
+    pub fn label(&self) -> &'static str {
+        match self {
+            FileTypeFilter::All => "Tous",
+            FileTypeFilter::Documents => "Documents",
+            FileTypeFilter::Images => "Images",
+            FileTypeFilter::Videos => "Vidéos",
+            FileTypeFilter::Audio => "Audio",
+            FileTypeFilter::Archives => "Archives",
+            FileTypeFilter::Code => "Code",
+            FileTypeFilter::Other => "Autres",
+        }
+    }
+}
+
+// Ordre de tri des résultats
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SortBy {
+    Relevance,    // Score Tantivy (défaut)
+    NameAsc,      // A→Z
+    NameDesc,     // Z→A
+    DateAsc,      // Ancien → Récent
+    DateDesc,     // Récent → Ancien
+    SizeAsc,      // Petit → Grand
+    SizeDesc,     // Grand → Petit
+}
+
+impl SortBy {
+    pub fn label(&self) -> &'static str {
+        match self {
+            SortBy::Relevance => "Pertinence",
+            SortBy::NameAsc => "Nom (A→Z)",
+            SortBy::NameDesc => "Nom (Z→A)",
+            SortBy::DateAsc => "Date (ancien→récent)",
+            SortBy::DateDesc => "Date (récent→ancien)",
+            SortBy::SizeAsc => "Taille (petit→grand)",
+            SortBy::SizeDesc => "Taille (grand→petit)",
+        }
+    }
 }
 
 pub struct XFinderApp {
@@ -44,6 +130,12 @@ pub struct XFinderApp {
     // Configuration de l'indexation (n-grams)
     pub min_ngram_size: usize,
     pub max_ngram_size: usize,
+    // Filtres et tri
+    pub filter_file_type: FileTypeFilter,
+    pub filter_date_after: Option<NaiveDate>,
+    pub filter_size_min: Option<u64>,  // en bytes
+    pub filter_size_max: Option<u64>,  // en bytes
+    pub sort_by: SortBy,
     progress_rx: Option<Receiver<IndexProgress>>,
 }
 
@@ -98,6 +190,12 @@ impl Default for XFinderApp {
             // Par défaut: n-grams 2-20 (bon équilibre vitesse/flexibilité)
             min_ngram_size: 2,
             max_ngram_size: 20,
+            // Filtres et tri par défaut
+            filter_file_type: FileTypeFilter::All,
+            filter_date_after: None,
+            filter_size_min: None,
+            filter_size_max: None,
+            sort_by: SortBy::Relevance,
             progress_rx: None,
         }
     }
@@ -299,6 +397,8 @@ impl XFinderApp {
                 Ok(results) => {
                     self.search_results = results;
                     self.results_display_limit = 50; // Reset à 50
+                    // Appliquer les filtres et le tri
+                    self.apply_filters_and_sort();
                     // Ne pas effacer error_message pour garder les infos d'indexation
                 }
                 Err(e) => {
@@ -316,6 +416,79 @@ impl XFinderApp {
             }
             self.error_message =
                 Some("Index non charge. Lancez une indexation d'abord.".to_string());
+        }
+    }
+
+    // Applique les filtres et le tri sur les résultats de recherche
+    pub fn apply_filters_and_sort(&mut self) {
+        // 1. Filtrer par type de fichier
+        if self.filter_file_type != FileTypeFilter::All {
+            self.search_results.retain(|result| {
+                self.filter_file_type.matches(&result.filename)
+            });
+        }
+
+        // 2. Filtrer par date (après une certaine date)
+        if let Some(ref date_after) = self.filter_date_after {
+            self.search_results.retain(|result| {
+                if let Some(ref modified_str) = result.modified {
+                    // Parse la date au format "YYYY-MM-DD HH:MM:SS"
+                    if let Some(date_part) = modified_str.split(' ').next() {
+                        if let Ok(file_date) = chrono::NaiveDate::parse_from_str(date_part, "%Y-%m-%d") {
+                            return file_date >= *date_after;
+                        }
+                    }
+                }
+                // Garder si pas de date de modification ou erreur de parsing
+                true
+            });
+        }
+
+        // 3. Filtrer par taille
+        if let Some(min_size) = self.filter_size_min {
+            self.search_results.retain(|result| result.size_bytes >= min_size);
+        }
+        if let Some(max_size) = self.filter_size_max {
+            self.search_results.retain(|result| result.size_bytes <= max_size);
+        }
+
+        // 4. Trier les résultats
+        match self.sort_by {
+            SortBy::Relevance => {
+                // Déjà trié par score de Tantivy
+            },
+            SortBy::NameAsc => {
+                self.search_results.sort_by(|a, b| a.filename.to_lowercase().cmp(&b.filename.to_lowercase()));
+            },
+            SortBy::NameDesc => {
+                self.search_results.sort_by(|a, b| b.filename.to_lowercase().cmp(&a.filename.to_lowercase()));
+            },
+            SortBy::DateAsc => {
+                self.search_results.sort_by(|a, b| {
+                    match (&a.modified, &b.modified) {
+                        (Some(d1), Some(d2)) => d1.cmp(d2),
+                        (Some(_), None) => std::cmp::Ordering::Less,
+                        (None, Some(_)) => std::cmp::Ordering::Greater,
+                        (None, None) => std::cmp::Ordering::Equal,
+                    }
+                });
+            },
+            SortBy::DateDesc => {
+                self.search_results.sort_by(|a, b| {
+                    match (&a.modified, &b.modified) {
+                        (Some(d1), Some(d2)) => d2.cmp(d1),
+                        (Some(_), None) => std::cmp::Ordering::Less,
+                        (None, Some(_)) => std::cmp::Ordering::Greater,
+                        (None, None) => std::cmp::Ordering::Equal,
+                    }
+                });
+            },
+            SortBy::SizeAsc => {
+                self.search_results.sort_by(|a, b| a.size_bytes.cmp(&b.size_bytes));
+            },
+            SortBy::SizeDesc => {
+                self.search_results.sort_by(|a, b| b.size_bytes.cmp(&a.size_bytes));
+            },
         }
     }
 
