@@ -154,17 +154,17 @@ fn render_image_preview(ui: &mut egui::Ui, file_path: &str) {
         return;
     }
 
-    // Vérifier la taille du fichier avant de charger (max 1Mo)
+    // Vérifier la taille du fichier avant de charger (max 150Ko pour performance)
     if let Ok(metadata) = std::fs::metadata(file_path) {
         let size_bytes = metadata.len();
-        const MAX_SIZE: u64 = 1024 * 1024; // 1Mo
+        const MAX_SIZE: u64 = 150 * 1024; // 150Ko
 
         if size_bytes > MAX_SIZE {
             ui.colored_label(
                 egui::Color32::from_rgb(200, 150, 100),
                 format!("⚠ Image trop volumineuse ({}) pour aperçu", format_size(size_bytes))
             );
-            ui.label("Les images de plus de 1 Mo ne sont pas prévisualisées pour éviter les ralentissements.");
+            ui.label("Les images de plus de 150 Ko ne sont pas prévisualisées pour éviter les ralentissements.");
             ui.add_space(10.0);
             ui.horizontal(|ui| {
                 ui.label("→");
