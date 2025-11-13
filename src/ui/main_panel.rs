@@ -203,7 +203,124 @@ pub fn render_main_ui(ctx: &egui::Context, app: &mut XFinderApp) {
 
                 // Filtre par taille de fichier
                 ui.label("Taille du fichier:");
-                ui.small("(Désactivé temporairement - en cours de refonte)");
+
+                // Taille Min
+                ui.horizontal(|ui| {
+                    ui.label("Min:");
+
+                    let mut size_min_enabled = app.filter_size_min.is_some();
+                    if ui.checkbox(&mut size_min_enabled, "").changed() {
+                        if size_min_enabled {
+                            app.filter_size_min = Some(100 * 1024); // 100 Ko par défaut
+                        } else {
+                            app.filter_size_min = None;
+                        }
+                        advanced_filters_changed = true;
+                    }
+
+                    if let Some(size_bytes) = app.filter_size_min {
+                        // Convertir en unité appropriée pour l'affichage
+                        let (mut value, mut unit) = if size_bytes >= 1024 * 1024 * 1024 {
+                            ((size_bytes as f64 / (1024.0 * 1024.0 * 1024.0)) as f32, "Go")
+                        } else if size_bytes >= 1024 * 1024 {
+                            ((size_bytes as f64 / (1024.0 * 1024.0)) as f32, "Mo")
+                        } else {
+                            ((size_bytes as f64 / 1024.0) as f32, "Ko")
+                        };
+
+                        // Input pour la valeur
+                        if ui.add(egui::DragValue::new(&mut value).speed(1.0).clamp_range(0.0..=999999.0)).changed() {
+                            // Reconvertir en bytes selon l'unité actuelle
+                            let new_bytes = match unit {
+                                "Go" => (value * 1024.0 * 1024.0 * 1024.0) as u64,
+                                "Mo" => (value * 1024.0 * 1024.0) as u64,
+                                _ => (value * 1024.0) as u64,
+                            };
+                            app.filter_size_min = Some(new_bytes);
+                            advanced_filters_changed = true;
+                        }
+
+                        // ComboBox pour l'unité
+                        egui::ComboBox::from_id_source("size_min_unit")
+                            .selected_text(unit)
+                            .width(50.0)
+                            .show_ui(ui, |ui| {
+                                if ui.selectable_value(&mut unit, "Ko", "Ko").clicked() {
+                                    app.filter_size_min = Some((value * 1024.0) as u64);
+                                    advanced_filters_changed = true;
+                                }
+                                if ui.selectable_value(&mut unit, "Mo", "Mo").clicked() {
+                                    app.filter_size_min = Some((value * 1024.0 * 1024.0) as u64);
+                                    advanced_filters_changed = true;
+                                }
+                                if ui.selectable_value(&mut unit, "Go", "Go").clicked() {
+                                    app.filter_size_min = Some((value * 1024.0 * 1024.0 * 1024.0) as u64);
+                                    advanced_filters_changed = true;
+                                }
+                            });
+                    } else {
+                        ui.label("(désactivé)");
+                    }
+                });
+
+                // Taille Max
+                ui.horizontal(|ui| {
+                    ui.label("Max:");
+
+                    let mut size_max_enabled = app.filter_size_max.is_some();
+                    if ui.checkbox(&mut size_max_enabled, "").changed() {
+                        if size_max_enabled {
+                            app.filter_size_max = Some(10 * 1024 * 1024); // 10 Mo par défaut
+                        } else {
+                            app.filter_size_max = None;
+                        }
+                        advanced_filters_changed = true;
+                    }
+
+                    if let Some(size_bytes) = app.filter_size_max {
+                        // Convertir en unité appropriée pour l'affichage
+                        let (mut value, mut unit) = if size_bytes >= 1024 * 1024 * 1024 {
+                            ((size_bytes as f64 / (1024.0 * 1024.0 * 1024.0)) as f32, "Go")
+                        } else if size_bytes >= 1024 * 1024 {
+                            ((size_bytes as f64 / (1024.0 * 1024.0)) as f32, "Mo")
+                        } else {
+                            ((size_bytes as f64 / 1024.0) as f32, "Ko")
+                        };
+
+                        // Input pour la valeur
+                        if ui.add(egui::DragValue::new(&mut value).speed(1.0).clamp_range(0.0..=999999.0)).changed() {
+                            // Reconvertir en bytes selon l'unité actuelle
+                            let new_bytes = match unit {
+                                "Go" => (value * 1024.0 * 1024.0 * 1024.0) as u64,
+                                "Mo" => (value * 1024.0 * 1024.0) as u64,
+                                _ => (value * 1024.0) as u64,
+                            };
+                            app.filter_size_max = Some(new_bytes);
+                            advanced_filters_changed = true;
+                        }
+
+                        // ComboBox pour l'unité
+                        egui::ComboBox::from_id_source("size_max_unit")
+                            .selected_text(unit)
+                            .width(50.0)
+                            .show_ui(ui, |ui| {
+                                if ui.selectable_value(&mut unit, "Ko", "Ko").clicked() {
+                                    app.filter_size_max = Some((value * 1024.0) as u64);
+                                    advanced_filters_changed = true;
+                                }
+                                if ui.selectable_value(&mut unit, "Mo", "Mo").clicked() {
+                                    app.filter_size_max = Some((value * 1024.0 * 1024.0) as u64);
+                                    advanced_filters_changed = true;
+                                }
+                                if ui.selectable_value(&mut unit, "Go", "Go").clicked() {
+                                    app.filter_size_max = Some((value * 1024.0 * 1024.0 * 1024.0) as u64);
+                                    advanced_filters_changed = true;
+                                }
+                            });
+                    } else {
+                        ui.label("(désactivé)");
+                    }
+                });
 
                 // Bouton pour réinitialiser tous les filtres avancés
                 if ui.button("Réinitialiser filtres avancés").clicked() {
