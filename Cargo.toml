@@ -30,6 +30,7 @@ opener = "0.7"
 # === Media ===
 rodio = "0.17"
 pdf-extract = "0.7"
+mp4parse = "0.17"
 
 [dev-dependencies]
 tempfile = "3.8"

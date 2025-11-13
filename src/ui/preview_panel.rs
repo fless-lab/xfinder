@@ -325,10 +325,92 @@ fn render_video_preview(ui: &mut egui::Ui, file_path: &str) {
         ui.add_space(5.0);
     }
 
-    // Note: L'extraction de frame nécessiterait ffmpeg ou gstreamer (trop lourd)
-    // Pour l'instant, on affiche juste un message
-    ui.label("Aperçu de frame non disponible");
+    // Extraire les métadonnées pour MP4
+    let path_lower = file_path.to_lowercase();
+    if path_lower.ends_with(".mp4") || path_lower.ends_with(".m4v") {
+        match extract_mp4_metadata(file_path) {
+            Ok(info) => {
+                if info.resolution.is_some() || info.duration.is_some() {
+                    ui.group(|ui| {
+                        ui.label(egui::RichText::new("Informations video:").strong());
+                        if let Some((width, height)) = info.resolution {
+                            ui.label(format!("Resolution: {}x{} pixels", width, height));
+                        }
+                        if let Some(duration) = info.duration {
+                            ui.label(format!("Duree: {}", format_duration(duration)));
+                        }
+                    });
+                    ui.add_space(5.0);
+                }
+            }
+            Err(_) => {
+                // Échec silencieux, on continue
+            }
+        }
+    }
+
+    ui.label("Note: Extraction de frame necessiterait ffmpeg (trop lourd)");
     ui.label("Cliquez sur 'Ouvrir' pour lire la video");
+}
+
+struct VideoInfo {
+    resolution: Option<(u32, u32)>,
+    duration: Option<f64>,
+}
+
+fn extract_mp4_metadata(file_path: &str) -> Result<VideoInfo, Box<dyn std::error::Error>> {
+    use std::fs::File;
+    use std::io::BufReader;
+
+    let file = File::open(file_path)?;
+    let mut reader = BufReader::new(file);
+
+    let context = mp4parse::read_mp4(&mut reader)?;
+
+    let mut info = VideoInfo {
+        resolution: None,
+        duration: None,
+    };
+
+    // Extraire les infos de la première piste vidéo
+    for track in &context.tracks {
+        if let mp4parse::TrackType::Video = track.track_type {
+            // Résolution depuis tkhd
+            if let Some(ref tkhd) = track.tkhd {
+                let width = (tkhd.width >> 16) as u32;
+                let height = (tkhd.height >> 16) as u32;
+                if width > 0 && height > 0 {
+                    info.resolution = Some((width, height));
+                }
+            }
+
+            // Durée (secondes) depuis edited_duration si disponible
+            if let Some(ref duration) = track.edited_duration {
+                if let Some(timescale) = context.timescale {
+                    if timescale.0 > 0 {
+                        info.duration = Some(duration.0 as f64 / timescale.0 as f64);
+                    }
+                }
+            }
+
+            break; // On prend juste la première piste vidéo
+        }
+    }
+
+    Ok(info)
+}
+
+fn format_duration(seconds: f64) -> String {
+    let total_secs = seconds as u64;
+    let hours = total_secs / 3600;
+    let minutes = (total_secs % 3600) / 60;
+    let secs = total_secs % 60;
+
+    if hours > 0 {
+        format!("{:02}:{:02}:{:02}", hours, minutes, secs)
+    } else {
+        format!("{:02}:{:02}", minutes, secs)
+    }
 }
 
 fn render_text_preview(ui: &mut egui::Ui, file_path: &str, file_size: u64) {
