@@ -110,9 +110,9 @@ pub fn render_main_ui(ctx: &egui::Context, app: &mut XFinderApp) {
         });
 
         // Re-filtrer et re-trier si changement
-        if filters_changed && !app.search_results.is_empty() {
-            // Relancer la recherche pour réappliquer les filtres
-            app.perform_search();
+        if filters_changed && !app.raw_search_results.is_empty() {
+            // Réappliquer les filtres sur les résultats bruts (pas de nouvelle recherche Tantivy)
+            app.apply_filters_and_sort();
         }
 
         ui.add_space(5.0);

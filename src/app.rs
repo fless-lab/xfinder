@@ -106,7 +106,8 @@ impl SortBy {
 
 pub struct XFinderApp {
     pub search_query: String,
-    pub search_results: Vec<SearchResult>,
+    pub search_results: Vec<SearchResult>,      // Résultats filtrés/triés (affichés)
+    pub raw_search_results: Vec<SearchResult>,  // Résultats bruts de Tantivy (originaux)
     pub search_index: Option<SearchIndex>,
     pub file_watcher: Option<FileWatcher>,
     pub audio_player: Option<AudioPlayer>,
@@ -171,6 +172,7 @@ impl Default for XFinderApp {
         Self {
             search_query: String::new(),
             search_results: Vec::new(),
+            raw_search_results: Vec::new(),
             search_index: None,
             file_watcher: None,
             audio_player: AudioPlayer::new().ok(),
@@ -399,6 +401,7 @@ impl XFinderApp {
     pub fn perform_search(&mut self) {
         if self.search_query.trim().is_empty() {
             self.search_results.clear();
+            self.raw_search_results.clear();
             return;
         }
 
@@ -414,15 +417,17 @@ impl XFinderApp {
             // Cherche jusqu'à 10000 résultats pour infinite scroll
             match index.search(&self.search_query, 10000, options) {
                 Ok(results) => {
-                    self.search_results = results;
+                    // Stocker les résultats bruts de Tantivy
+                    self.raw_search_results = results;
                     self.results_display_limit = 50; // Reset à 50
-                    // Appliquer les filtres et le tri
+                    // Appliquer les filtres et le tri (copie depuis raw_search_results)
                     self.apply_filters_and_sort();
                     // Ne pas effacer error_message pour garder les infos d'indexation
                 }
                 Err(e) => {
                     self.error_message = Some(format!("Erreur recherche: {}", e));
                     self.search_results.clear();
+                    self.raw_search_results.clear();
                 }
             }
         } else {
@@ -440,6 +445,10 @@ impl XFinderApp {
 
     // Applique les filtres et le tri sur les résultats de recherche
     pub fn apply_filters_and_sort(&mut self) {
+        // Toujours partir d'une copie fraîche des résultats bruts de Tantivy
+        // Cela permet de changer de filtre sans perdre les résultats originaux
+        self.search_results = self.raw_search_results.clone();
+
         // 1. Filtrer par type de fichier
         if self.filter_file_type != FileTypeFilter::All {
             self.search_results.retain(|result| {
