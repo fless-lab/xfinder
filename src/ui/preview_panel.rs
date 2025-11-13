@@ -212,43 +212,46 @@ fn render_svg_preview(ui: &mut egui::Ui, file_path: &str) {
 }
 
 fn render_pdf_preview(ui: &mut egui::Ui, file_path: &str) {
-    ui.label("Document PDF - Aperçu texte:");
+    ui.label("Document PDF");
     ui.add_space(5.0);
 
-    // Extraire le texte du PDF
-    match pdf_extract::extract_text(file_path) {
-        Ok(text) => {
-            if text.trim().is_empty() {
-                ui.label("PDF sans texte extractible (peut-être des images)");
-                ui.label("Cliquez sur 'Ouvrir' pour visualiser le PDF complet");
-            } else {
-                // Limiter à 5000 caractères pour la preview
-                let preview = if text.len() > 5000 {
-                    format!("{}...\n\n[Texte tronqué - {} caractères au total]",
-                        &text[..5000], text.len())
-                } else {
-                    text
-                };
+    // Afficher les infos basiques
+    if let Ok(metadata) = std::fs::metadata(file_path) {
+        ui.group(|ui| {
+            ui.label(format!("Taille: {}", format_size(metadata.len())));
 
-                ui.label(format!("Longueur: {} caractères", preview.len()));
-                ui.add_space(5.0);
-
-                egui::ScrollArea::vertical()
-                    .max_height(300.0)
-                    .show(ui, |ui| {
-                        ui.add(
-                            egui::TextEdit::multiline(&mut preview.as_str())
-                                .desired_width(f32::INFINITY)
-                                .font(egui::TextStyle::Monospace)
-                        );
-                    });
+            // Essayer de lire le nombre de pages (lecture rapide juste du header)
+            if let Ok(bytes) = std::fs::read(file_path) {
+                // Recherche simple du count de pages dans le PDF
+                if let Ok(content) = String::from_utf8_lossy(&bytes[..bytes.len().min(10000)]).parse::<String>() {
+                    if let Some(count_pos) = content.find("/Count ") {
+                        if let Some(page_count_str) = content[count_pos+7..].split_whitespace().next() {
+                            if let Ok(pages) = page_count_str.parse::<u32>() {
+                                ui.label(format!("Pages: ~{}", pages));
+                            }
+                        }
+                    }
+                }
             }
-        }
-        Err(e) => {
-            ui.label(format!("Impossible d'extraire le texte: {}", e));
-            ui.label("Cliquez sur 'Ouvrir' pour visualiser le PDF");
-        }
+        });
     }
+
+    ui.add_space(10.0);
+    ui.separator();
+    ui.add_space(10.0);
+
+    // Message explicatif
+    ui.label("📄 Aperçu PDF non disponible");
+    ui.small("L'extraction de texte peut être lente pour les gros fichiers.");
+    ui.add_space(5.0);
+
+    ui.horizontal(|ui| {
+        ui.label("→");
+        if ui.button("Ouvrir le PDF").clicked() {
+            let _ = opener::open(file_path);
+        }
+        ui.label("pour le visualiser");
+    });
 }
 
 fn render_audio_preview(ui: &mut egui::Ui, app: &mut XFinderApp, file_path: &str) {
