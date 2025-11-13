@@ -207,16 +207,19 @@ pub fn render_main_ui(ctx: &egui::Context, app: &mut XFinderApp) {
                             // Convertir en Ko
                             let kb = *size_bytes as f64 / 1024.0;
                             *size_bytes = (kb.round() * 1024.0) as u64;
+                            advanced_filters_changed = true;
                         }
                         if ui.small_button("Mo").clicked() {
                             // Convertir en Mo
                             let mb = *size_bytes as f64 / (1024.0 * 1024.0);
                             *size_bytes = (mb.round() * 1024.0 * 1024.0) as u64;
+                            advanced_filters_changed = true;
                         }
                         if ui.small_button("Go").clicked() {
                             // Convertir en Go
                             let gb = *size_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
                             *size_bytes = (gb.round() * 1024.0 * 1024.0 * 1024.0) as u64;
+                            advanced_filters_changed = true;
                         }
                     } else {
                         ui.label("(désactivé)");
@@ -257,14 +260,17 @@ pub fn render_main_ui(ctx: &egui::Context, app: &mut XFinderApp) {
                         if ui.small_button("Ko").clicked() {
                             let kb = *size_bytes as f64 / 1024.0;
                             *size_bytes = (kb.round() * 1024.0) as u64;
+                            advanced_filters_changed = true;
                         }
                         if ui.small_button("Mo").clicked() {
                             let mb = *size_bytes as f64 / (1024.0 * 1024.0);
                             *size_bytes = (mb.round() * 1024.0 * 1024.0) as u64;
+                            advanced_filters_changed = true;
                         }
                         if ui.small_button("Go").clicked() {
                             let gb = *size_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
                             *size_bytes = (gb.round() * 1024.0 * 1024.0 * 1024.0) as u64;
+                            advanced_filters_changed = true;
                         }
                     } else {
                         ui.label("(désactivé)");
