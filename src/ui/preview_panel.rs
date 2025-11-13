@@ -211,13 +211,44 @@ fn render_svg_preview(ui: &mut egui::Ui, file_path: &str) {
     }
 }
 
-fn render_pdf_preview(ui: &mut egui::Ui, _file_path: &str) {
-    ui.label("Document PDF");
-    ui.label("Aperçu texte non disponible pour le moment");
-    ui.label("Cliquez sur 'Ouvrir' pour visualiser le PDF");
+fn render_pdf_preview(ui: &mut egui::Ui, file_path: &str) {
+    ui.label("Document PDF - Aperçu texte:");
+    ui.add_space(5.0);
 
-    // TODO: Utiliser pdf-extract pour extraire le texte
-    // Pour l'instant, juste afficher l'info
+    // Extraire le texte du PDF
+    match pdf_extract::extract_text(file_path) {
+        Ok(text) => {
+            if text.trim().is_empty() {
+                ui.label("PDF sans texte extractible (peut-être des images)");
+                ui.label("Cliquez sur 'Ouvrir' pour visualiser le PDF complet");
+            } else {
+                // Limiter à 5000 caractères pour la preview
+                let preview = if text.len() > 5000 {
+                    format!("{}...\n\n[Texte tronqué - {} caractères au total]",
+                        &text[..5000], text.len())
+                } else {
+                    text
+                };
+
+                ui.label(format!("Longueur: {} caractères", preview.len()));
+                ui.add_space(5.0);
+
+                egui::ScrollArea::vertical()
+                    .max_height(300.0)
+                    .show(ui, |ui| {
+                        ui.add(
+                            egui::TextEdit::multiline(&mut preview.as_str())
+                                .desired_width(f32::INFINITY)
+                                .font(egui::TextStyle::Monospace)
+                        );
+                    });
+            }
+        }
+        Err(e) => {
+            ui.label(format!("Impossible d'extraire le texte: {}", e));
+            ui.label("Cliquez sur 'Ouvrir' pour visualiser le PDF");
+        }
+    }
 }
 
 fn render_audio_preview(ui: &mut egui::Ui, app: &mut XFinderApp, file_path: &str) {
