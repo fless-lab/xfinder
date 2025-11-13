@@ -257,6 +257,65 @@ pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
                 ui.label("Detection auto: ajout/modification/suppression");
             }
 
+            ui.add_space(10.0);
+            ui.separator();
+            ui.add_space(10.0);
+
+            // Exclusions
+            ui.label("Exclusions d'indexation:");
+
+            // Extensions exclues
+            ui.label("Extensions exclues:");
+            ui.small(format!("{}", app.excluded_extensions.join(", ")));
+            if ui.button("+ Ajouter extension").clicked() {
+                // TODO: Modal pour ajouter une extension
+            }
+
+            ui.add_space(5.0);
+
+            // Patterns exclus
+            ui.label("Patterns exclus:");
+            let mut pattern_to_remove = None;
+            for (idx, pattern) in app.excluded_patterns.iter().enumerate() {
+                ui.horizontal(|ui| {
+                    ui.small(pattern);
+                    if ui.small_button("X").clicked() {
+                        pattern_to_remove = Some(idx);
+                    }
+                });
+            }
+            if let Some(idx) = pattern_to_remove {
+                app.excluded_patterns.remove(idx);
+            }
+            if ui.button("+ Ajouter pattern").clicked() {
+                // TODO: Modal pour ajouter un pattern
+            }
+
+            ui.add_space(5.0);
+
+            // Dossiers exclus
+            ui.label("Dossiers exclus:");
+            let mut to_remove = None;
+            for (idx, dir) in app.excluded_dirs.iter().enumerate() {
+                ui.horizontal(|ui| {
+                    ui.small(dir);
+                    if ui.small_button("X").clicked() {
+                        to_remove = Some(idx);
+                    }
+                });
+            }
+            if let Some(idx) = to_remove {
+                app.excluded_dirs.remove(idx);
+            }
+            if ui.button("+ Exclure dossier").clicked() {
+                if let Some(path) = rfd::FileDialog::new().pick_folder() {
+                    let dir_str = path.to_string_lossy().to_string();
+                    if !app.excluded_dirs.contains(&dir_str) {
+                        app.excluded_dirs.push(dir_str);
+                    }
+                }
+            }
+
             // Padding en bas pour éviter que le contenu soit collé au bord
             ui.add_space(20.0);
             }); // Fin du ScrollArea

@@ -136,6 +136,10 @@ pub struct XFinderApp {
     pub filter_size_min: Option<u64>,  // en bytes
     pub filter_size_max: Option<u64>,  // en bytes
     pub sort_by: SortBy,
+    // Exclusions d'indexation
+    pub excluded_dirs: Vec<String>,      // Dossiers à exclure
+    pub excluded_extensions: Vec<String>, // Extensions à exclure (.tmp, .log, etc.)
+    pub excluded_patterns: Vec<String>,   // Patterns glob (node_modules, .git, etc.)
     progress_rx: Option<Receiver<IndexProgress>>,
 }
 
@@ -196,6 +200,21 @@ impl Default for XFinderApp {
             filter_size_min: None,
             filter_size_max: None,
             sort_by: SortBy::Relevance,
+            // Exclusions par défaut (patterns courants)
+            excluded_dirs: vec![],
+            excluded_extensions: vec![
+                ".tmp".to_string(),
+                ".log".to_string(),
+                ".cache".to_string(),
+                ".bak".to_string(),
+            ],
+            excluded_patterns: vec![
+                "node_modules".to_string(),
+                ".git".to_string(),
+                "__pycache__".to_string(),
+                "target/debug".to_string(),  // Rust builds
+                "target/release".to_string(),
+            ],
             progress_rx: None,
         }
     }
