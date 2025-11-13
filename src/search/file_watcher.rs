@@ -151,6 +151,7 @@ impl FileWatcher {
     pub fn apply_events_to_index(
         &self,
         index: &SearchIndex,
+        database: Option<&std::sync::Arc<crate::database::Database>>,
         excluded_extensions: &[String],
         excluded_patterns: &[String],
         excluded_dirs: &[String],
@@ -174,6 +175,35 @@ impl FileWatcher {
                             if index.add_file(&mut writer, &path_str, &filename_str).is_ok() {
                                 let _ = writer.commit();
                                 updated_count += 1;
+
+                                // Ajouter dans SQLite aussi
+                                if let Some(db) = database {
+                                    if let Ok(metadata) = std::fs::metadata(&path) {
+                                        let now = chrono::Utc::now().timestamp();
+                                        let file_record = crate::database::queries::FileRecord {
+                                            id: format!("{:x}", path_str.as_bytes().iter().fold(0u64, |acc, &b| acc.wrapping_mul(31).wrapping_add(b as u64))),
+                                            path: path_str.clone(),
+                                            filename: filename_str.clone(),
+                                            extension: path.extension()
+                                                .and_then(|s| s.to_str())
+                                                .map(|s| format!(".{}", s)),
+                                            size: metadata.len(),
+                                            modified: metadata.modified()
+                                                .ok()
+                                                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                                                .map(|d| d.as_secs() as i64)
+                                                .unwrap_or(now),
+                                            created: metadata.created()
+                                                .ok()
+                                                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                                                .map(|d| d.as_secs() as i64)
+                                                .unwrap_or(now),
+                                            hash: None,
+                                            indexed_at: now,
+                                        };
+                                        let _ = db.upsert_file(&file_record);
+                                    }
+                                }
                             }
                         }
                     }
@@ -185,13 +215,45 @@ impl FileWatcher {
 
                         // Vérifier si le fichier doit être exclu
                         if Self::should_exclude(&path, &filename_str, excluded_extensions, excluded_patterns, excluded_dirs) {
-                            // Si le fichier est maintenant exclu, le supprimer de l'index
+                            // Si le fichier est maintenant exclu, le supprimer de l'index et de la DB
                             let _ = index.delete_file_by_path(&path_str);
+                            if let Some(db) = database {
+                                let _ = db.delete_file(&path_str);
+                            }
                             continue;
                         }
 
                         if index.update_file(&path_str, &filename_str).is_ok() {
                             updated_count += 1;
+
+                            // Mettre à jour dans SQLite aussi
+                            if let Some(db) = database {
+                                if let Ok(metadata) = std::fs::metadata(&path) {
+                                    let now = chrono::Utc::now().timestamp();
+                                    let file_record = crate::database::queries::FileRecord {
+                                        id: format!("{:x}", path_str.as_bytes().iter().fold(0u64, |acc, &b| acc.wrapping_mul(31).wrapping_add(b as u64))),
+                                        path: path_str.clone(),
+                                        filename: filename_str.clone(),
+                                        extension: path.extension()
+                                            .and_then(|s| s.to_str())
+                                            .map(|s| format!(".{}", s)),
+                                        size: metadata.len(),
+                                        modified: metadata.modified()
+                                            .ok()
+                                            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                                            .map(|d| d.as_secs() as i64)
+                                            .unwrap_or(now),
+                                        created: metadata.created()
+                                            .ok()
+                                            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                                            .map(|d| d.as_secs() as i64)
+                                            .unwrap_or(now),
+                                        hash: None,
+                                        indexed_at: now,
+                                    };
+                                    let _ = db.upsert_file(&file_record);
+                                }
+                            }
                         }
                     }
                 }
@@ -200,6 +262,10 @@ impl FileWatcher {
                     let path_str = path.to_string_lossy().to_string();
                     if index.delete_file_by_path(&path_str).is_ok() {
                         updated_count += 1;
+                    }
+                    // Supprimer de SQLite aussi
+                    if let Some(db) = database {
+                        let _ = db.delete_file(&path_str);
                     }
                 }
                 FileEvent::Renamed { from, to } => {

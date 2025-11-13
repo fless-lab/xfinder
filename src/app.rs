@@ -9,6 +9,7 @@ use crossbeam_channel::{unbounded, Receiver, Sender};
 use crate::search::{FileScanner, SearchIndex, SearchResult, FileWatcher, SearchOptions};
 use crate::ui::{render_main_ui, render_side_panel, render_top_panel, render_preview_panel, render_settings_modal};
 use crate::audio_player::AudioPlayer;
+use crate::database::Database;
 use chrono::{DateTime, Local, NaiveDate};
 
 // Message de progression de l'indexation
@@ -109,6 +110,7 @@ pub struct XFinderApp {
     pub search_results: Vec<SearchResult>,      // Résultats filtrés/triés (affichés)
     pub raw_search_results: Vec<SearchResult>,  // Résultats bruts de Tantivy (originaux)
     pub search_index: Option<SearchIndex>,
+    pub database: Option<Arc<Database>>,         // Base SQLite pour métadonnées
     pub file_watcher: Option<FileWatcher>,
     pub audio_player: Option<AudioPlayer>,
     pub index_dir: PathBuf,
@@ -175,11 +177,22 @@ impl Default for XFinderApp {
                 .to_string()
         ];
 
+        // Initialiser la database SQLite
+        let db_path = dirs::home_dir()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
+            .join(".xfinder_index")
+            .join("xfinder.db");
+
+        let database = Database::new(&db_path)
+            .ok()
+            .map(Arc::new);
+
         Self {
             search_query: String::new(),
             search_results: Vec::new(),
             raw_search_results: Vec::new(),
             search_index: None,
+            database,
             file_watcher: None,
             audio_player: AudioPlayer::new().ok(),
             index_dir,
@@ -297,6 +310,8 @@ impl XFinderApp {
         let excluded_extensions = self.excluded_extensions.clone();
         let excluded_patterns = self.excluded_patterns.clone();
         let excluded_dirs = self.excluded_dirs.clone();
+        // Cloner la database pour le thread
+        let database = self.database.clone();
 
         // Créer le channel de progression
         let (progress_tx, progress_rx) = unbounded::<IndexProgress>();
@@ -324,6 +339,7 @@ impl XFinderApp {
             };
 
             let mut total_indexed = 0;
+            let mut db_batch: Vec<crate::database::queries::FileRecord> = Vec::with_capacity(1000);
 
             // Scanner chaque dossier
             for path_str in &scan_paths {
@@ -342,6 +358,42 @@ impl XFinderApp {
                         if index.add_file(&mut writer, &file.path, &file.filename).is_ok() {
                             total_indexed += 1;
 
+                            // Collecter métadonnées pour SQLite
+                            if let Some(ref db) = database {
+                                if let Ok(metadata) = std::fs::metadata(&file.path) {
+                                    let now = chrono::Utc::now().timestamp();
+                                    let file_record = crate::database::queries::FileRecord {
+                                        id: format!("{:x}", file.path.as_bytes().iter().fold(0u64, |acc, &b| acc.wrapping_mul(31).wrapping_add(b as u64))),
+                                        path: file.path.clone(),
+                                        filename: file.filename.clone(),
+                                        extension: std::path::Path::new(&file.path)
+                                            .extension()
+                                            .and_then(|s| s.to_str())
+                                            .map(|s| format!(".{}", s)),
+                                        size: metadata.len(),
+                                        modified: metadata.modified()
+                                            .ok()
+                                            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                                            .map(|d| d.as_secs() as i64)
+                                            .unwrap_or(now),
+                                        created: metadata.created()
+                                            .ok()
+                                            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                                            .map(|d| d.as_secs() as i64)
+                                            .unwrap_or(now),
+                                        hash: None, // Pas de hash pour l'instant (performance)
+                                        indexed_at: now,
+                                    };
+                                    db_batch.push(file_record);
+
+                                    // Batch insert tous les 1000 fichiers
+                                    if db_batch.len() >= 1000 {
+                                        let _ = db.batch_upsert_files(&db_batch);
+                                        db_batch.clear();
+                                    }
+                                }
+                            }
+
                             // Envoyer progression tous les 10 fichiers
                             if i % 10 == 0 {
                                 let _ = progress_tx.send(IndexProgress {
@@ -352,6 +404,13 @@ impl XFinderApp {
                             }
                         }
                     }
+                }
+            }
+
+            // Flush dernier batch SQLite
+            if !db_batch.is_empty() {
+                if let Some(ref db) = database {
+                    let _ = db.batch_upsert_files(&db_batch);
                 }
             }
 
@@ -593,6 +652,7 @@ impl XFinderApp {
             if let Some(ref index) = self.search_index {
                 match watcher.apply_events_to_index(
                     index,
+                    self.database.as_ref(),
                     &self.excluded_extensions,
                     &self.excluded_patterns,
                     &self.excluded_dirs
