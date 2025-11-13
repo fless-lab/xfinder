@@ -172,46 +172,99 @@ pub fn render_main_ui(ctx: &egui::Context, app: &mut XFinderApp) {
                 // Filtre par taille de fichier
                 ui.label("Taille du fichier:");
 
+                // Min
                 ui.horizontal(|ui| {
-                    ui.label("Min (MB):");
+                    ui.label("Min:");
                     let mut size_min_enabled = app.filter_size_min.is_some();
                     if ui.checkbox(&mut size_min_enabled, "").changed() {
                         if size_min_enabled {
-                            app.filter_size_min = Some(1024 * 1024); // 1 MB par défaut
+                            app.filter_size_min = Some(100 * 1024); // 100 KB par défaut
                         } else {
                             app.filter_size_min = None;
                         }
                         advanced_filters_changed = true;
                     }
 
-                    if let Some(ref mut size) = app.filter_size_min {
-                        let mut size_mb = (*size as f64 / (1024.0 * 1024.0)) as f32;
-                        if ui.add(egui::Slider::new(&mut size_mb, 0.0..=10000.0).logarithmic(true).suffix(" MB")).changed() {
-                            *size = (size_mb * 1024.0 * 1024.0) as u64;
+                    if let Some(ref mut size_bytes) = app.filter_size_min {
+                        // Choisir l'unité appropriée
+                        let (mut value, unit_label, multiplier) = if *size_bytes >= 1024 * 1024 * 1024 {
+                            ((*size_bytes as f64 / (1024.0 * 1024.0 * 1024.0)) as f32, "Go", 1024 * 1024 * 1024)
+                        } else if *size_bytes >= 1024 * 1024 {
+                            ((*size_bytes as f64 / (1024.0 * 1024.0)) as f32, "Mo", 1024 * 1024)
+                        } else {
+                            ((*size_bytes as f64 / 1024.0) as f32, "Ko", 1024)
+                        };
+
+                        if ui.add(egui::DragValue::new(&mut value).speed(1.0).clamp_range(0.0..=999999.0)).changed() {
+                            *size_bytes = (value * multiplier as f32) as u64;
                             advanced_filters_changed = true;
+                        }
+
+                        ui.label(unit_label);
+
+                        // Boutons unités
+                        if ui.small_button("Ko").clicked() {
+                            // Convertir en Ko
+                            let kb = *size_bytes as f64 / 1024.0;
+                            *size_bytes = (kb.round() * 1024.0) as u64;
+                        }
+                        if ui.small_button("Mo").clicked() {
+                            // Convertir en Mo
+                            let mb = *size_bytes as f64 / (1024.0 * 1024.0);
+                            *size_bytes = (mb.round() * 1024.0 * 1024.0) as u64;
+                        }
+                        if ui.small_button("Go").clicked() {
+                            // Convertir en Go
+                            let gb = *size_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
+                            *size_bytes = (gb.round() * 1024.0 * 1024.0 * 1024.0) as u64;
                         }
                     } else {
                         ui.label("(désactivé)");
                     }
                 });
 
+                // Max
                 ui.horizontal(|ui| {
-                    ui.label("Max (MB):");
+                    ui.label("Max:");
                     let mut size_max_enabled = app.filter_size_max.is_some();
                     if ui.checkbox(&mut size_max_enabled, "").changed() {
                         if size_max_enabled {
-                            app.filter_size_max = Some(100 * 1024 * 1024); // 100 MB par défaut
+                            app.filter_size_max = Some(10 * 1024 * 1024); // 10 MB par défaut
                         } else {
                             app.filter_size_max = None;
                         }
                         advanced_filters_changed = true;
                     }
 
-                    if let Some(ref mut size) = app.filter_size_max {
-                        let mut size_mb = (*size as f64 / (1024.0 * 1024.0)) as f32;
-                        if ui.add(egui::Slider::new(&mut size_mb, 0.0..=10000.0).logarithmic(true).suffix(" MB")).changed() {
-                            *size = (size_mb * 1024.0 * 1024.0) as u64;
+                    if let Some(ref mut size_bytes) = app.filter_size_max {
+                        // Choisir l'unité appropriée
+                        let (mut value, unit_label, multiplier) = if *size_bytes >= 1024 * 1024 * 1024 {
+                            ((*size_bytes as f64 / (1024.0 * 1024.0 * 1024.0)) as f32, "Go", 1024 * 1024 * 1024)
+                        } else if *size_bytes >= 1024 * 1024 {
+                            ((*size_bytes as f64 / (1024.0 * 1024.0)) as f32, "Mo", 1024 * 1024)
+                        } else {
+                            ((*size_bytes as f64 / 1024.0) as f32, "Ko", 1024)
+                        };
+
+                        if ui.add(egui::DragValue::new(&mut value).speed(1.0).clamp_range(0.0..=999999.0)).changed() {
+                            *size_bytes = (value * multiplier as f32) as u64;
                             advanced_filters_changed = true;
+                        }
+
+                        ui.label(unit_label);
+
+                        // Boutons unités
+                        if ui.small_button("Ko").clicked() {
+                            let kb = *size_bytes as f64 / 1024.0;
+                            *size_bytes = (kb.round() * 1024.0) as u64;
+                        }
+                        if ui.small_button("Mo").clicked() {
+                            let mb = *size_bytes as f64 / (1024.0 * 1024.0);
+                            *size_bytes = (mb.round() * 1024.0 * 1024.0) as u64;
+                        }
+                        if ui.small_button("Go").clicked() {
+                            let gb = *size_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
+                            *size_bytes = (gb.round() * 1024.0 * 1024.0 * 1024.0) as u64;
                         }
                     } else {
                         ui.label("(désactivé)");
