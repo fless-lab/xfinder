@@ -110,8 +110,7 @@ impl SortBy {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SettingsTab {
     Exclusions,
-    Indexation,
-    Interface,
+    General,
 }
 
 impl Default for SettingsTab {

@@ -26,11 +26,8 @@ pub fn render_settings_modal(ctx: &egui::Context, app: &mut XFinderApp) {
                     if ui.selectable_label(app.settings_tab == SettingsTab::Exclusions, "🚫 Exclusions").clicked() {
                         app.settings_tab = SettingsTab::Exclusions;
                     }
-                    if ui.selectable_label(app.settings_tab == SettingsTab::Indexation, "📚 Indexation").clicked() {
-                        app.settings_tab = SettingsTab::Indexation;
-                    }
-                    if ui.selectable_label(app.settings_tab == SettingsTab::Interface, "🖥 Interface").clicked() {
-                        app.settings_tab = SettingsTab::Interface;
+                    if ui.selectable_label(app.settings_tab == SettingsTab::General, "⚙️ Général").clicked() {
+                        app.settings_tab = SettingsTab::General;
                     }
                 });
 
@@ -42,8 +39,7 @@ pub fn render_settings_modal(ctx: &egui::Context, app: &mut XFinderApp) {
 
                     match app.settings_tab {
                         SettingsTab::Exclusions => render_exclusions_tab(ui, app),
-                        SettingsTab::Indexation => render_indexation_tab(ui, app),
-                        SettingsTab::Interface => render_interface_tab(ui, app),
+                        SettingsTab::General => render_general_tab(ui, app),
                     }
                 });
             });
@@ -218,69 +214,12 @@ fn render_exclusions_tab(ui: &mut egui::Ui, app: &mut XFinderApp) {
                 ui.colored_label(egui::Color32::from_rgb(200, 150, 50), "⚠ Réindexer pour appliquer les changements");
 }
 
-fn render_indexation_tab(ui: &mut egui::Ui, app: &mut XFinderApp) {
-    ui.heading("Configuration de l'indexation");
-    ui.add_space(10.0);
-
-    // N-grams
-    ui.label("Taille des n-grams pour la recherche:");
-    ui.add_space(5.0);
-
-    ui.horizontal(|ui| {
-        ui.label("Min:");
-        if ui.add(egui::DragValue::new(&mut app.min_ngram_size).speed(1).clamp_range(1..=10)).changed() {
-            if app.min_ngram_size > app.max_ngram_size {
-                app.max_ngram_size = app.min_ngram_size;
-            }
-            app.save_config();
-        }
-
-        ui.add_space(20.0);
-
-        ui.label("Max:");
-        if ui.add(egui::DragValue::new(&mut app.max_ngram_size).speed(1).clamp_range(1..=30)).changed() {
-            if app.max_ngram_size < app.min_ngram_size {
-                app.min_ngram_size = app.max_ngram_size;
-            }
-            app.save_config();
-        }
-    });
-    ui.small(format!("Actuel: {}-{} caractères (redémarrage requis)", app.min_ngram_size, app.max_ngram_size));
-
-    ui.add_space(20.0);
-    ui.separator();
-    ui.add_space(15.0);
-
-    // Limite de fichiers
-    ui.label("Limite de fichiers à indexer:");
-    ui.add_space(5.0);
-
-    if ui.checkbox(&mut app.no_file_limit, "Pas de limite (indexer tous les fichiers)").changed() {
-        app.save_config();
-    }
-
-    ui.add_space(5.0);
-
-    ui.add_enabled_ui(!app.no_file_limit, |ui| {
-        ui.horizontal(|ui| {
-            ui.label("Limite:");
-            if ui.add(egui::DragValue::new(&mut app.max_files_to_index).speed(1000).clamp_range(1000..=10000000)).changed() {
-                app.save_config();
-            }
-            ui.label("fichiers");
-        });
-    });
-
-    ui.add_space(15.0);
-    ui.colored_label(egui::Color32::from_rgb(200, 150, 50), "⚠ Réindexer pour appliquer les changements de n-grams");
-}
-
-fn render_interface_tab(ui: &mut egui::Ui, app: &mut XFinderApp) {
-    ui.heading("Configuration de l'interface");
+fn render_general_tab(ui: &mut egui::Ui, app: &mut XFinderApp) {
+    ui.heading("Paramètres généraux");
     ui.add_space(10.0);
 
     // Limite d'affichage des résultats
-    ui.label("Nombre de résultats à afficher:");
+    ui.label("Affichage des résultats:");
     ui.add_space(5.0);
 
     ui.horizontal(|ui| {
@@ -288,35 +227,34 @@ fn render_interface_tab(ui: &mut egui::Ui, app: &mut XFinderApp) {
         if ui.add(egui::DragValue::new(&mut app.results_display_limit).speed(10).clamp_range(10..=1000)).changed() {
             app.save_config();
         }
-        ui.label("résultats");
+        ui.label("résultats affichés");
     });
-    ui.small("Affecte uniquement l'affichage, pas la recherche");
+    ui.small("Affecte uniquement l'affichage dans la liste, pas la recherche");
 
     ui.add_space(20.0);
     ui.separator();
     ui.add_space(15.0);
 
-    // Watchdog
-    ui.label("Watchdog (surveillance temps réel):");
+    // Info sur les autres paramètres
+    ui.heading("Autres paramètres");
     ui.add_space(5.0);
+    ui.label("Les paramètres suivants sont disponibles dans la barre latérale:");
+    ui.add_space(10.0);
 
-    let was_enabled = app.watchdog_enabled;
-    ui.checkbox(&mut app.watchdog_enabled, "Activer la surveillance en temps réel");
+    ui.horizontal(|ui| {
+        ui.label("•");
+        ui.label("Watchdog (surveillance temps réel)");
+    });
+    ui.horizontal(|ui| {
+        ui.label("•");
+        ui.label("N-grams (configuration de l'indexation)");
+    });
+    ui.horizontal(|ui| {
+        ui.label("•");
+        ui.label("Limite de fichiers à indexer");
+    });
 
-    if was_enabled != app.watchdog_enabled {
-        if app.watchdog_enabled {
-            app.enable_watchdog();
-        } else {
-            app.disable_watchdog();
-        }
-    }
-
-    ui.add_space(5.0);
-    ui.small("Le watchdog surveille les changements de fichiers et met à jour l'index automatiquement");
-
-    if app.watchdog_enabled {
-        ui.add_space(10.0);
-        ui.colored_label(egui::Color32::from_rgb(100, 200, 100),
-            format!("✓ Watchdog actif ({} mises à jour)", app.watchdog_update_count));
-    }
+    ui.add_space(15.0);
+    ui.colored_label(egui::Color32::from_rgb(150, 150, 150),
+        "💡 Ces paramètres sont dans la sidebar pour un accès rapide");
 }
