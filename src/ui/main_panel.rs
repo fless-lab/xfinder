@@ -117,6 +117,123 @@ pub fn render_main_ui(ctx: &egui::Context, app: &mut XFinderApp) {
 
         ui.add_space(5.0);
 
+        // Filtres avancés (date et taille) dans une section pliable
+        egui::CollapsingHeader::new("Filtres avancés")
+            .default_open(false)
+            .show(ui, |ui| {
+                let mut advanced_filters_changed = false;
+
+                // Filtre par date de modification
+                ui.horizontal(|ui| {
+                    ui.label("Modifié après:");
+
+                    let mut date_enabled = app.filter_date_after.is_some();
+                    if ui.checkbox(&mut date_enabled, "").changed() {
+                        if date_enabled {
+                            // Activer avec date par défaut (30 jours avant aujourd'hui)
+                            app.filter_date_after = Some(
+                                chrono::Local::now().naive_local().date() - chrono::Duration::days(30)
+                            );
+                        } else {
+                            app.filter_date_after = None;
+                        }
+                        advanced_filters_changed = true;
+                    }
+
+                    if let Some(date) = app.filter_date_after {
+                        // Afficher la date actuelle et permettre de la modifier via un input texte
+                        let mut date_str = date.format("%Y-%m-%d").to_string();
+                        ui.label(&date_str);
+
+                        // Boutons pour incrémenter/décrémenter les jours
+                        if ui.button("-7j").clicked() {
+                            app.filter_date_after = Some(date - chrono::Duration::days(7));
+                            advanced_filters_changed = true;
+                        }
+                        if ui.button("-1j").clicked() {
+                            app.filter_date_after = Some(date - chrono::Duration::days(1));
+                            advanced_filters_changed = true;
+                        }
+                        if ui.button("+1j").clicked() {
+                            app.filter_date_after = Some(date + chrono::Duration::days(1));
+                            advanced_filters_changed = true;
+                        }
+                        if ui.button("+7j").clicked() {
+                            app.filter_date_after = Some(date + chrono::Duration::days(7));
+                            advanced_filters_changed = true;
+                        }
+                    } else {
+                        ui.label("(désactivé)");
+                    }
+                });
+
+                ui.add_space(5.0);
+
+                // Filtre par taille de fichier
+                ui.label("Taille du fichier:");
+
+                ui.horizontal(|ui| {
+                    ui.label("Min (MB):");
+                    let mut size_min_enabled = app.filter_size_min.is_some();
+                    if ui.checkbox(&mut size_min_enabled, "").changed() {
+                        if size_min_enabled {
+                            app.filter_size_min = Some(1024 * 1024); // 1 MB par défaut
+                        } else {
+                            app.filter_size_min = None;
+                        }
+                        advanced_filters_changed = true;
+                    }
+
+                    if let Some(ref mut size) = app.filter_size_min {
+                        let mut size_mb = (*size as f64 / (1024.0 * 1024.0)) as f32;
+                        if ui.add(egui::Slider::new(&mut size_mb, 0.0..=10000.0).logarithmic(true).suffix(" MB")).changed() {
+                            *size = (size_mb * 1024.0 * 1024.0) as u64;
+                            advanced_filters_changed = true;
+                        }
+                    } else {
+                        ui.label("(désactivé)");
+                    }
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("Max (MB):");
+                    let mut size_max_enabled = app.filter_size_max.is_some();
+                    if ui.checkbox(&mut size_max_enabled, "").changed() {
+                        if size_max_enabled {
+                            app.filter_size_max = Some(100 * 1024 * 1024); // 100 MB par défaut
+                        } else {
+                            app.filter_size_max = None;
+                        }
+                        advanced_filters_changed = true;
+                    }
+
+                    if let Some(ref mut size) = app.filter_size_max {
+                        let mut size_mb = (*size as f64 / (1024.0 * 1024.0)) as f32;
+                        if ui.add(egui::Slider::new(&mut size_mb, 0.0..=10000.0).logarithmic(true).suffix(" MB")).changed() {
+                            *size = (size_mb * 1024.0 * 1024.0) as u64;
+                            advanced_filters_changed = true;
+                        }
+                    } else {
+                        ui.label("(désactivé)");
+                    }
+                });
+
+                // Bouton pour réinitialiser tous les filtres avancés
+                if ui.button("Réinitialiser filtres avancés").clicked() {
+                    app.filter_date_after = None;
+                    app.filter_size_min = None;
+                    app.filter_size_max = None;
+                    advanced_filters_changed = true;
+                }
+
+                // Appliquer les changements
+                if advanced_filters_changed && !app.raw_search_results.is_empty() {
+                    app.apply_filters_and_sort();
+                }
+            });
+
+        ui.add_space(5.0);
+
         // Messages d'erreur ou de succès
         if let Some(ref msg) = app.error_message {
             ui.colored_label(egui::Color32::from_rgb(200, 100, 50), msg);
