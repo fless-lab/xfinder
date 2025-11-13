@@ -167,6 +167,28 @@ pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
             ui.separator();
             ui.add_space(10.0);
 
+            // Configuration de la taille max des n-grams
+            ui.label("Taille max recherche (n-grams):");
+            ui.horizontal(|ui| {
+                ui.add(egui::Slider::new(&mut app.max_ngram_size, 6..=100)
+                    .text("caractères"));
+            });
+            ui.label(format!("(Actuel: {} chars)", app.max_ngram_size));
+
+            // Aide contextuelle
+            ui.small("↑ Plus petit = indexation rapide, recherches limitées");
+            ui.small("↓ Plus grand = indexation lente, recherches flexibles");
+            ui.small("Recommandé: 20 (bon équilibre)");
+
+            ui.colored_label(
+                egui::Color32::from_rgb(255, 200, 100),
+                "⚠ Nécessite une nouvelle indexation pour appliquer"
+            );
+
+            ui.add_space(10.0);
+            ui.separator();
+            ui.add_space(10.0);
+
             ui.label("Actions:");
 
             // Détection de changement de chemin

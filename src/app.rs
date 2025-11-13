@@ -41,6 +41,8 @@ pub struct XFinderApp {
     pub search_case_sensitive: bool,
     pub search_in_filename: bool,
     pub search_in_path: bool,
+    // Configuration de l'indexation
+    pub max_ngram_size: usize,
     progress_rx: Option<Receiver<IndexProgress>>,
 }
 
@@ -92,6 +94,8 @@ impl Default for XFinderApp {
             search_case_sensitive: false,
             search_in_filename: true,
             search_in_path: true,
+            // Par défaut: 20 caractères (bon équilibre vitesse/flexibilité)
+            max_ngram_size: 20,
             progress_rx: None,
         }
     }
@@ -99,7 +103,7 @@ impl Default for XFinderApp {
 
 impl XFinderApp {
     pub fn load_index(&mut self) {
-        match SearchIndex::new(&self.index_dir) {
+        match SearchIndex::new(&self.index_dir, self.max_ngram_size) {
             Ok(index) => {
                 self.search_index = Some(index);
                 self.index_status.is_ready = true;
@@ -154,6 +158,7 @@ impl XFinderApp {
         } else {
             self.max_files_to_index
         };
+        let max_ngram_size = self.max_ngram_size;
 
         // Créer le channel de progression
         let (progress_tx, progress_rx) = unbounded::<IndexProgress>();
@@ -167,7 +172,7 @@ impl XFinderApp {
             }
 
             // Charger l'index (nouveau schéma si on a effacé)
-            let index = match SearchIndex::new(&index_dir) {
+            let index = match SearchIndex::new(&index_dir, max_ngram_size) {
                 Ok(idx) => idx,
                 Err(_) => return,
             };
