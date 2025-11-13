@@ -2,6 +2,9 @@
 name = "xfinder"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+description = "Moteur de recherche de fichiers ultra-rapide avec surveillance temps réel"
+repository = "https://github.com/your-org/xfinder"
 
 [dependencies]
 # === UI (egui natif) ===
