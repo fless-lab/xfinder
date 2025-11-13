@@ -145,12 +145,36 @@ fn render_file_preview(ui: &mut egui::Ui, app: &mut XFinderApp, file_path: &str,
 
 fn render_image_preview(ui: &mut egui::Ui, file_path: &str) {
     ui.label("Aperçu de l'image:");
+    ui.add_space(5.0);
 
     // Support SVG via resvg
     let path_lower = file_path.to_lowercase();
     if path_lower.ends_with(".svg") {
         render_svg_preview(ui, file_path);
         return;
+    }
+
+    // Vérifier la taille du fichier avant de charger (max 1Mo)
+    if let Ok(metadata) = std::fs::metadata(file_path) {
+        let size_bytes = metadata.len();
+        const MAX_SIZE: u64 = 1024 * 1024; // 1Mo
+
+        if size_bytes > MAX_SIZE {
+            ui.colored_label(
+                egui::Color32::from_rgb(200, 150, 100),
+                format!("⚠ Image trop volumineuse ({}) pour aperçu", format_size(size_bytes))
+            );
+            ui.label("Les images de plus de 1 Mo ne sont pas prévisualisées pour éviter les ralentissements.");
+            ui.add_space(10.0);
+            ui.horizontal(|ui| {
+                ui.label("→");
+                if ui.button("Ouvrir l'image").clicked() {
+                    let _ = opener::open(file_path);
+                }
+                ui.label("pour la visualiser");
+            });
+            return;
+        }
     }
 
     match image::open(file_path) {
