@@ -93,13 +93,14 @@ impl SearchIndex {
         // Même si on ouvre un index existant, le tokenizer doit être enregistré
         // car il n'est pas persisté sur disque
         //
-        // N-grams 2-80: supporte fragments courts ET noms de fichiers complets
+        // N-grams 2-255: aucune limite pratique pour les noms de fichiers
         // - Fragments: ".m", "log", "pdf" (2-5 chars)
         // - Mots: "readme", "document" (6-10 chars)
         // - Noms longs: "presentation_finale_2024.pdf" (30+ chars)
-        // - Limite à 80 pour couvrir la plupart des noms de fichiers réels
+        // - Limite à 255 = limite Windows pour les noms de fichiers
+        // - Pas d'impact sur la taille de l'index car les noms courts génèrent peu de n-grams
         let ngram_tokenizer = TextAnalyzer::builder(
-            NgramTokenizer::new(2, 80, false).unwrap()
+            NgramTokenizer::new(2, 255, false).unwrap()
         )
         .filter(LowerCaser)
         .build();
@@ -213,7 +214,7 @@ impl SearchIndex {
 
     // Recherche ultra-flexible: marche avec n'importe quel fragment
     // Ex: ".m" trouve ".md", "log" trouve "CHANGELOG.md", "ops" trouve "DataOps.pdf"
-    // Avec n-grams 2-80, supporte fragments courts ET noms de fichiers complets
+    // Avec n-grams 2-255, aucune limite pratique (max = limite Windows)
     //
     // Options disponibles:
     // - exact_match: recherche exacte sans n-grams
