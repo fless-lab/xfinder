@@ -173,19 +173,25 @@ Optional CUDA support for embedding generation provides 10x speed improvement at
 
 Project currently in active development. Contributions welcome after Phase 1 MVP completion.
 
-## Licence
+## License
 
-**Licence Personnalisée - Usage Non-Commercial**
+This software is licensed under a **Custom Non-Commercial License**.
 
-✅ Utilisation gratuite
-✅ Modification autorisée
-✅ Distribution autorisée
-❌ Revente interdite
-❌ Usage commercial interdit
+### Permissions
+- ✅ Free personal and non-commercial use
+- ✅ Modification and distribution for non-commercial purposes
+- ✅ Source code access and study
 
-Voir [LICENSE](LICENSE) pour les détails complets.
+### Restrictions
+- ❌ Commercial use prohibited without explicit written permission
+- ❌ Sale or sublicensing of the software or derivative works
+- ❌ Use in commercial products or paid services (SaaS)
 
-Pour toute utilisation commerciale, contactez l'auteur.
+For the complete license terms, see [LICENSE](LICENSE).
+
+### Commercial Licensing
+For commercial use inquiries, please contact:
+**achilleatarmla@gmail.com**
 
 ## Project Status
 
