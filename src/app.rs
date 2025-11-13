@@ -88,10 +88,11 @@ impl XFinderApp {
             Ok(index) => {
                 self.search_index = Some(index);
                 self.index_status.is_ready = true;
-                self.error_message = None;
+                // Ne pas effacer error_message ici pour garder le message de succès
             }
             Err(e) => {
                 self.error_message = Some(format!("Erreur chargement index: {}", e));
+                self.index_status.is_ready = false;
             }
         }
     }
@@ -263,7 +264,7 @@ impl XFinderApp {
                 Ok(results) => {
                     self.search_results = results;
                     self.results_display_limit = 50; // Reset à 50
-                    self.error_message = None;
+                    // Ne pas effacer error_message pour garder les infos d'indexation
                 }
                 Err(e) => {
                     self.error_message = Some(format!("Erreur recherche: {}", e));
@@ -271,6 +272,13 @@ impl XFinderApp {
                 }
             }
         } else {
+            // Index pas chargé - essayer de le charger
+            self.load_index();
+            if self.search_index.is_some() {
+                // Retry la recherche après chargement
+                self.perform_search();
+                return;
+            }
             self.error_message =
                 Some("Index non charge. Lancez une indexation d'abord.".to_string());
         }

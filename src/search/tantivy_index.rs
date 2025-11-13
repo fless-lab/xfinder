@@ -33,33 +33,45 @@ impl SearchIndex {
     // - path: chemin complet du fichier (TEXT | STORED)
     // - filename: nom du fichier uniquement (TEXT | STORED)
     pub fn new(index_dir: &Path) -> Result<Self> {
-        // Schéma avec n-grams pour recherche fuzzy
-        // N-gram de taille 3: "DataOps" → "Dat", "ata", "taO", "aOp", "Ops"
-        // Permet de trouver même avec sous-chaîne partielle
-        let mut schema_builder = Schema::builder();
-
-        let text_opts = TextOptions::default()
-            .set_indexing_options(
-                TextFieldIndexing::default()
-                    .set_tokenizer("ngram3")
-                    .set_index_option(IndexRecordOption::WithFreqsAndPositions)
-            )
-            .set_stored();
-
-        let path_field = schema_builder.add_text_field("path", text_opts.clone());
-        let filename_field = schema_builder.add_text_field("filename", text_opts);
-        let schema = schema_builder.build();
-
         std::fs::create_dir_all(index_dir)
             .context("Impossible de créer le dossier d'index")?;
 
-        let index = Index::create_in_dir(index_dir, schema.clone())
-            .or_else(|_| Index::open_in_dir(index_dir))
-            .context("Impossible de créer/ouvrir l'index Tantivy")?;
+        // Essayer d'ouvrir un index existant d'abord
+        let (index, schema, path_field, filename_field) = if index_dir.join("meta.json").exists() {
+            // Index existe - ouvrir et récupérer son schéma
+            let index = Index::open_in_dir(index_dir)
+                .context("Impossible d'ouvrir l'index existant")?;
+            let schema = index.schema();
+            let path_field = schema.get_field("path")
+                .context("Champ 'path' introuvable dans le schéma")?;
+            let filename_field = schema.get_field("filename")
+                .context("Champ 'filename' introuvable dans le schéma")?;
+            (index, schema, path_field, filename_field)
+        } else {
+            // Créer un nouvel index avec schéma n-gram
+            let mut schema_builder = Schema::builder();
 
-        // Enregistrer le tokenizer n-gram
-        // Min=2, Max=6 pour bon équilibre: flexible mais pas trop permissif
-        // "filtrag" → "fi", "il", "lt", "tr", "ra", "ag", "fil", "ilt", etc.
+            let text_opts = TextOptions::default()
+                .set_indexing_options(
+                    TextFieldIndexing::default()
+                        .set_tokenizer("ngram3")
+                        .set_index_option(IndexRecordOption::WithFreqsAndPositions)
+                )
+                .set_stored();
+
+            let path_field = schema_builder.add_text_field("path", text_opts.clone());
+            let filename_field = schema_builder.add_text_field("filename", text_opts);
+            let schema = schema_builder.build();
+
+            let index = Index::create_in_dir(index_dir, schema.clone())
+                .context("Impossible de créer l'index")?;
+
+            (index, schema, path_field, filename_field)
+        };
+
+        // CRITIQUE: Enregistrer le tokenizer n-gram À CHAQUE FOIS
+        // Même si on ouvre un index existant, le tokenizer doit être enregistré
+        // car il n'est pas persisté sur disque
         let ngram_tokenizer = TextAnalyzer::builder(
             NgramTokenizer::new(2, 6, false).unwrap()
         )
