@@ -12,16 +12,15 @@ pub fn render_settings_modal(ctx: &egui::Context, app: &mut XFinderApp) {
     egui::Window::new("⚙️ Paramètres")
         .collapsible(false)
         .resizable(true)
-        .default_width(700.0)
-        .default_height(550.0)
+        .default_width(800.0)
+        .default_height(600.0)
         .show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                // Menu latéral pour les onglets
-                ui.vertical(|ui| {
-                    ui.set_min_width(150.0);
-                    ui.heading("Sections");
-                    ui.separator();
-                    ui.add_space(10.0);
+            // Layout vertical principal
+            ui.vertical(|ui| {
+                // Top: Sélecteur d'onglets horizontal
+                ui.horizontal(|ui| {
+                    ui.heading("Paramètres");
+                    ui.add_space(20.0);
 
                     if ui.selectable_label(app.settings_tab == SettingsTab::Exclusions, "🚫 Exclusions").clicked() {
                         app.settings_tab = SettingsTab::Exclusions;
@@ -32,29 +31,30 @@ pub fn render_settings_modal(ctx: &egui::Context, app: &mut XFinderApp) {
                 });
 
                 ui.separator();
+                ui.add_space(10.0);
 
-                // Contenu de l'onglet sélectionné
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    ui.set_min_width(500.0);
+                // Contenu scrollable
+                egui::ScrollArea::vertical()
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                        match app.settings_tab {
+                            SettingsTab::Exclusions => render_exclusions_tab(ui, app),
+                            SettingsTab::General => render_general_tab(ui, app),
+                        }
+                    });
 
-                    match app.settings_tab {
-                        SettingsTab::Exclusions => render_exclusions_tab(ui, app),
-                        SettingsTab::General => render_general_tab(ui, app),
+                ui.add_space(10.0);
+                ui.separator();
+
+                // Footer avec boutons
+                ui.horizontal(|ui| {
+                    if ui.button("✓ Fermer").clicked() {
+                        app.show_settings_modal = false;
                     }
-                });
-            });
 
-            ui.separator();
-            ui.add_space(5.0);
-
-            // Bouton fermer en bas
-            ui.horizontal(|ui| {
-                if ui.button("✓ Fermer").clicked() {
-                    app.show_settings_modal = false;
-                }
-
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label("💾 Configuration sauvegardée automatiquement");
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.small("💾 Configuration sauvegardée automatiquement");
+                    });
                 });
             });
         });

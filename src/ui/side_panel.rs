@@ -261,18 +261,8 @@ pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
             ui.separator();
             ui.add_space(10.0);
 
-            // Exclusions - résumé avec bouton paramètres
-            ui.label("Exclusions d'indexation:");
-            ui.small(format!("{} extensions, {} patterns, {} dossiers",
-                app.excluded_extensions.len(),
-                app.excluded_patterns.len(),
-                app.excluded_dirs.len()
-            ));
-
-            ui.add_space(5.0);
-
-            // Bouton paramètres pour ouvrir le modal
-            if ui.button("⚙️ Paramètres d'exclusion").clicked() {
+            // Bouton paramètres
+            if ui.button("⚙️ Paramètres").clicked() {
                 app.show_settings_modal = true;
             }
 
