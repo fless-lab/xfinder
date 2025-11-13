@@ -111,13 +111,15 @@ pub fn render_settings_modal(ctx: &egui::Context, app: &mut XFinderApp) {
                 ui.label("Ces dossiers spécifiques ne seront pas indexés");
                 ui.add_space(5.0);
 
-                // Liste des dossiers (boutons, un par ligne car chemins longs)
+                // Liste des dossiers (boutons chips)
                 let mut dir_to_remove = None;
-                for (idx, dir) in app.excluded_dirs.iter().enumerate() {
-                    if ui.button(format!("✖ {}", dir)).clicked() {
-                        dir_to_remove = Some(idx);
+                ui.horizontal_wrapped(|ui| {
+                    for (idx, dir) in app.excluded_dirs.iter().enumerate() {
+                        if ui.button(format!("✖ {}", dir)).clicked() {
+                            dir_to_remove = Some(idx);
+                        }
                     }
-                }
+                });
                 if let Some(idx) = dir_to_remove {
                     app.excluded_dirs.remove(idx);
                 }
