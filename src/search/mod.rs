@@ -9,7 +9,7 @@ pub mod file_watcher;
 mod search_test;
 
 pub use scanner::{FileEntry, FileScanner};
-pub use tantivy_index::SearchIndex;
+pub use tantivy_index::{SearchIndex, SearchOptions};
 pub use file_watcher::{FileWatcher, FileEvent};
 
 // Résultat de recherche avec métadonnées

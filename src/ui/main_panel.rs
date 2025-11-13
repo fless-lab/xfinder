@@ -30,6 +30,37 @@ pub fn render_main_ui(ctx: &egui::Context, app: &mut XFinderApp) {
             }
         });
 
+        // Options de recherche avancée
+        ui.horizontal(|ui| {
+            ui.label("Options:");
+
+            let mut changed = false;
+
+            if ui.checkbox(&mut app.search_exact_match, "Match exact").changed() {
+                changed = true;
+            }
+
+            if ui.checkbox(&mut app.search_case_sensitive, "Respecter la casse").changed() {
+                changed = true;
+            }
+
+            ui.separator();
+            ui.label("Chercher dans:");
+
+            if ui.checkbox(&mut app.search_in_filename, "Nom").changed() {
+                changed = true;
+            }
+
+            if ui.checkbox(&mut app.search_in_path, "Chemin").changed() {
+                changed = true;
+            }
+
+            // Relancer la recherche si une option a changé et qu'il y a une query
+            if changed && !app.search_query.trim().is_empty() {
+                app.perform_search();
+            }
+        });
+
         ui.add_space(10.0);
 
         // Messages d'erreur ou de succès

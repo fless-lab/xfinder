@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use crossbeam_channel::{unbounded, Receiver, Sender};
 
-use crate::search::{FileScanner, SearchIndex, SearchResult, FileWatcher};
+use crate::search::{FileScanner, SearchIndex, SearchResult, FileWatcher, SearchOptions};
 use crate::ui::{render_main_ui, render_side_panel, render_top_panel, render_preview_panel};
 use crate::audio_player::AudioPlayer;
 
@@ -36,6 +36,11 @@ pub struct XFinderApp {
     pub watchdog_enabled: bool,
     pub watchdog_update_count: usize,
     pub scan_entire_pc: bool,
+    // Options de recherche avancée
+    pub search_exact_match: bool,
+    pub search_case_sensitive: bool,
+    pub search_in_filename: bool,
+    pub search_in_path: bool,
     progress_rx: Option<Receiver<IndexProgress>>,
 }
 
@@ -82,6 +87,11 @@ impl Default for XFinderApp {
             watchdog_enabled: false,
             watchdog_update_count: 0,
             scan_entire_pc: false,
+            // Options de recherche par défaut
+            search_exact_match: false,
+            search_case_sensitive: false,
+            search_in_filename: true,
+            search_in_path: true,
             progress_rx: None,
         }
     }
@@ -268,8 +278,16 @@ impl XFinderApp {
         }
 
         if let Some(ref index) = self.search_index {
+            // Construire les options de recherche
+            let options = SearchOptions {
+                exact_match: self.search_exact_match,
+                case_sensitive: self.search_case_sensitive,
+                search_in_filename: self.search_in_filename,
+                search_in_path: self.search_in_path,
+            };
+
             // Cherche jusqu'à 10000 résultats pour infinite scroll
-            match index.search(&self.search_query, 10000) {
+            match index.search(&self.search_query, 10000, options) {
                 Ok(results) => {
                     self.search_results = results;
                     self.results_display_limit = 50; // Reset à 50

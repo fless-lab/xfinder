@@ -16,6 +16,26 @@ use tantivy::{doc, Index, IndexWriter, TantivyDocument, Term};
 
 use super::SearchResult;
 
+// Options de recherche avancée
+#[derive(Debug, Clone)]
+pub struct SearchOptions {
+    pub exact_match: bool,
+    pub case_sensitive: bool,
+    pub search_in_filename: bool,
+    pub search_in_path: bool,
+}
+
+impl Default for SearchOptions {
+    fn default() -> Self {
+        Self {
+            exact_match: false,
+            case_sensitive: false,
+            search_in_filename: true,
+            search_in_path: true,
+        }
+    }
+}
+
 pub struct SearchIndex {
     index: Index,
     schema: Schema,
@@ -187,7 +207,12 @@ impl SearchIndex {
 
     // Recherche ultra-flexible: marche avec n'importe quel fragment
     // Ex: ".m" trouve ".md", "log" trouve "CHANGELOG.md", "ops" trouve "DataOps.pdf"
-    pub fn search(&self, query_str: &str, limit: usize) -> Result<Vec<SearchResult>> {
+    //
+    // Options disponibles:
+    // - exact_match: recherche exacte sans n-grams
+    // - case_sensitive: respecter la casse
+    // - search_in_filename/search_in_path: limiter la zone de recherche
+    pub fn search(&self, query_str: &str, limit: usize, options: SearchOptions) -> Result<Vec<SearchResult>> {
         let reader = self
             .index
             .reader()
@@ -195,20 +220,55 @@ impl SearchIndex {
 
         let searcher = reader.searcher();
 
-        // Nettoyer et préparer la requête
-        let clean_query = query_str.trim().to_lowercase();
+        // Préparer la requête selon les options
+        let clean_query = if options.case_sensitive {
+            query_str.trim().to_string()
+        } else {
+            query_str.trim().to_lowercase()
+        };
 
-        // Avec n-grams 1-5, la recherche est déjà très flexible
-        // Pas besoin de wildcards, le tokenizer s'en occupe
-        let query_parser = QueryParser::for_index(&self.index, vec![self.filename_field, self.path_field]);
-        let query = query_parser
-            .parse_query(&clean_query)
-            .context("Impossible de parser la requête")?;
+        // Déterminer les champs à rechercher
+        let mut search_fields = Vec::new();
+        if options.search_in_filename {
+            search_fields.push(self.filename_field);
+        }
+        if options.search_in_path {
+            search_fields.push(self.path_field);
+        }
+
+        // Si aucun champ sélectionné, chercher dans les deux par défaut
+        if search_fields.is_empty() {
+            search_fields.push(self.filename_field);
+            search_fields.push(self.path_field);
+        }
+
+        // Construire la requête selon le mode (exact ou flexible)
+        let query: Box<dyn tantivy::query::Query> = if options.exact_match {
+            // Mode exact: utiliser TermQuery pour chaque champ
+            use tantivy::query::BooleanQuery;
+            use tantivy::query::Occur;
+
+            let term_queries: Vec<(Occur, Box<dyn tantivy::query::Query>)> = search_fields
+                .iter()
+                .map(|field| {
+                    let term = Term::from_field_text(*field, &clean_query);
+                    (Occur::Should, Box::new(TermQuery::new(term, IndexRecordOption::Basic)) as Box<dyn tantivy::query::Query>)
+                })
+                .collect();
+
+            Box::new(BooleanQuery::new(term_queries))
+        } else {
+            // Mode flexible: utiliser QueryParser avec n-grams
+            let query_parser = QueryParser::for_index(&self.index, search_fields);
+            Box::new(query_parser
+                .parse_query(&clean_query)
+                .context("Impossible de parser la requête")?)
+        };
 
         // Lance la recherche et récupère les N meilleurs documents
         // TopDocs collecte les résultats triés par score de pertinence
         let top_docs = searcher
-            .search(&query, &TopDocs::with_limit(limit))
+            .search(&*query, &TopDocs::with_limit(limit))
             .context("Erreur lors de la recherche")?;
 
         // Convertir les résultats Tantivy en SearchResult
@@ -274,8 +334,8 @@ mod tests {
             .unwrap();
         writer.commit().unwrap();
 
-        // Rechercher "txt"
-        let results = index.search("txt", 10).unwrap();
+        // Rechercher "txt" avec options par défaut
+        let results = index.search("txt", 10, SearchOptions::default()).unwrap();
         assert_eq!(results.len(), 2); // readme.txt + notes.txt
 
         // Vérifier qu'on trouve bien les fichiers
@@ -292,7 +352,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&temp_dir);
         let index = SearchIndex::new(&temp_dir).unwrap();
 
-        let results = index.search("nonexistent_file_xyz", 10).unwrap();
+        let results = index.search("nonexistent_file_xyz", 10, SearchOptions::default()).unwrap();
         assert_eq!(results.len(), 0);
 
         let _ = std::fs::remove_dir_all(&temp_dir);
