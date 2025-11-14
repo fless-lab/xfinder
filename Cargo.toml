@@ -28,6 +28,7 @@ crossbeam-channel = "0.5"
 # === Utils ===
 anyhow = "1.0"
 chrono = "0.4"
+blake3 = "1.5"
 dirs = "5.0"
 opener = "0.7"
 serde = { version = "1.0", features = ["derive"] }
@@ -36,6 +37,7 @@ toml = "0.8"
 # === System Integration ===
 tray-icon = "0.14"
 tokio = { version = "1", features = ["rt", "time", "macros"] }
+global-hotkey = "0.5"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"

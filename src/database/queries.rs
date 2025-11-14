@@ -351,6 +351,81 @@ pub fn cleanup_old_logs(conn: &Connection) -> Result<usize> {
     Ok(deleted)
 }
 
+// ==================== Duplicate Detection ====================
+
+/// Représente un groupe de fichiers dupliqués
+#[derive(Debug, Clone)]
+pub struct DuplicateGroup {
+    pub hash: String,
+    pub files: Vec<FileRecord>,
+    pub total_size: u64,
+    pub duplicate_count: usize,
+}
+
+/// Trouve tous les fichiers dupliqués (même hash blake3)
+///
+/// Retourne une liste de groupes, chaque groupe contenant tous les fichiers
+/// ayant le même hash. Seuls les hash ayant 2+ fichiers sont retournés.
+pub fn find_duplicates(conn: &Connection) -> Result<Vec<DuplicateGroup>> {
+    // 1. Récupérer tous les hash qui apparaissent plus d'une fois
+    let mut stmt = conn.prepare(
+        "SELECT hash, COUNT(*) as count
+         FROM files
+         WHERE hash IS NOT NULL
+         GROUP BY hash
+         HAVING count > 1
+         ORDER BY count DESC"
+    )?;
+
+    let duplicate_hashes: Vec<String> = stmt.query_map([], |row| {
+        row.get::<_, String>(0)
+    })?.collect::<Result<Vec<_>>>()?;
+
+    // 2. Pour chaque hash dupliqué, récupérer tous les fichiers
+    let mut groups = Vec::new();
+    for hash in duplicate_hashes {
+        let mut file_stmt = conn.prepare_cached(
+            "SELECT id, path, filename, extension, size, modified, created, hash, indexed_at
+             FROM files
+             WHERE hash = ?1"
+        )?;
+
+        let files: Vec<FileRecord> = file_stmt.query_map(params![&hash], |row| {
+            Ok(FileRecord {
+                id: row.get(0)?,
+                path: row.get(1)?,
+                filename: row.get(2)?,
+                extension: row.get(3)?,
+                size: row.get::<_, i64>(4)? as u64,
+                modified: row.get(5)?,
+                created: row.get(6)?,
+                hash: row.get(7)?,
+                indexed_at: row.get(8)?,
+            })
+        })?.collect::<Result<Vec<_>>>()?;
+
+        let total_size = files.iter().map(|f| f.size).sum();
+        let duplicate_count = files.len();
+
+        groups.push(DuplicateGroup {
+            hash,
+            files,
+            total_size,
+            duplicate_count,
+        });
+    }
+
+    Ok(groups)
+}
+
+/// Compte le nombre total de fichiers dupliqués
+pub fn count_duplicates(conn: &Connection) -> Result<(usize, u64)> {
+    let groups = find_duplicates(conn)?;
+    let total_files: usize = groups.iter().map(|g| g.duplicate_count).sum();
+    let total_size: u64 = groups.iter().map(|g| g.total_size).sum();
+    Ok((total_files, total_size))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

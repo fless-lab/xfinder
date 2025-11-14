@@ -217,6 +217,19 @@ pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
                 if ui.button("Rafraichir").clicked() {
                     app.refresh_index(); // Ajoute par-dessus
                 }
+
+                // Bouton Pause/Resume (seulement si indexation en cours)
+                if app.indexing_in_progress {
+                    if app.is_indexing_paused() {
+                        if ui.button("▶ Reprendre").clicked() {
+                            app.resume_indexing();
+                        }
+                    } else {
+                        if ui.button("⏸ Pause").clicked() {
+                            app.pause_indexing();
+                        }
+                    }
+                }
             });
 
             ui.add_space(5.0);

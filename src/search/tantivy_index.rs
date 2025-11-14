@@ -23,6 +23,8 @@ pub struct SearchOptions {
     pub case_sensitive: bool,
     pub search_in_filename: bool,
     pub search_in_path: bool,
+    pub fuzzy_search: bool,        // Recherche floue (tolère les fautes de frappe)
+    pub fuzzy_distance: u8,        // Distance Levenshtein (0-2, défaut 1)
 }
 
 impl Default for SearchOptions {
@@ -32,6 +34,8 @@ impl Default for SearchOptions {
             case_sensitive: false,
             search_in_filename: true,
             search_in_path: true,
+            fuzzy_search: false,
+            fuzzy_distance: 1,
         }
     }
 }
@@ -254,8 +258,22 @@ impl SearchIndex {
             search_fields.push(self.path_field);
         }
 
-        // Construire la requête selon le mode (exact ou flexible)
-        let query: Box<dyn tantivy::query::Query> = if options.exact_match {
+        // Construire la requête selon le mode (exact, fuzzy ou flexible)
+        let query: Box<dyn tantivy::query::Query> = if options.fuzzy_search {
+            // Mode fuzzy: utiliser FuzzyTermQuery pour tolérer les fautes de frappe
+            use tantivy::query::{BooleanQuery, Occur, FuzzyTermQuery};
+
+            let fuzzy_queries: Vec<(Occur, Box<dyn tantivy::query::Query>)> = search_fields
+                .iter()
+                .map(|field| {
+                    let term = Term::from_field_text(*field, &clean_query);
+                    let fuzzy_query = FuzzyTermQuery::new(term, options.fuzzy_distance, true);
+                    (Occur::Should, Box::new(fuzzy_query) as Box<dyn tantivy::query::Query>)
+                })
+                .collect();
+
+            Box::new(BooleanQuery::new(fuzzy_queries))
+        } else if options.exact_match {
             // Mode exact: utiliser TermQuery pour chaque champ
             use tantivy::query::BooleanQuery;
             use tantivy::query::Occur;

@@ -5,3 +5,4 @@ pub mod config;
 pub mod system;
 pub mod search;
 pub mod database;
+pub mod hash;

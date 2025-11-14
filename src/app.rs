@@ -4,6 +4,7 @@
 use eframe::egui;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 
 use crate::search::{FileScanner, SearchIndex, SearchResult, FileWatcher, SearchOptions};
@@ -134,6 +135,7 @@ pub struct XFinderApp {
     pub scan_paths: Vec<String>,
     pub index_status: IndexStatus,
     pub indexing_in_progress: bool,
+    pub indexing_paused: Arc<AtomicBool>,
     pub error_message: Option<String>,
     pub preview_file_path: Option<String>,
     pub max_files_to_index: usize,
@@ -147,6 +149,8 @@ pub struct XFinderApp {
     pub search_case_sensitive: bool,
     pub search_in_filename: bool,
     pub search_in_path: bool,
+    pub search_fuzzy: bool,
+    pub fuzzy_distance: u8,
     // Configuration de l'indexation (n-grams)
     pub min_ngram_size: usize,
     pub max_ngram_size: usize,
@@ -172,6 +176,7 @@ pub struct XFinderApp {
     // System integration
     pub system_tray: Option<SystemTray>,
     pub scheduler: Option<Scheduler>,
+    pub hotkey_manager: Option<crate::system::HotkeyManager>,
 }
 
 #[derive(Default)]
@@ -230,6 +235,7 @@ impl Default for XFinderApp {
             scan_paths,
             index_status: IndexStatus::default(),
             indexing_in_progress: false,
+            indexing_paused: Arc::new(AtomicBool::new(false)),
             error_message: None,
             preview_file_path: None,
             max_files_to_index,
@@ -243,6 +249,8 @@ impl Default for XFinderApp {
             search_case_sensitive: false,
             search_in_filename: true,
             search_in_path: true,
+            search_fuzzy: false,
+            fuzzy_distance: 1,
             // Utiliser les valeurs de config pour n-grams
             min_ngram_size,
             max_ngram_size,
@@ -268,6 +276,7 @@ impl Default for XFinderApp {
             // System integration
             system_tray: SystemTray::new().ok(),
             scheduler: None,  // Sera initialisé après si activé dans la config
+            hotkey_manager: crate::system::HotkeyManager::new().ok(),
         }
     }
 }
@@ -357,10 +366,15 @@ impl XFinderApp {
         let excluded_dirs = self.excluded_dirs.clone();
         // Cloner la database pour le thread
         let database = self.database.clone();
+        // Cloner le flag de pause pour le thread
+        let indexing_paused = self.indexing_paused.clone();
 
         // Créer le channel de progression
         let (progress_tx, progress_rx) = unbounded::<IndexProgress>();
         self.progress_rx = Some(progress_rx);
+
+        // Réinitialiser la pause au début de l'indexation
+        self.indexing_paused.store(false, Ordering::Relaxed);
 
         // Lancer l'indexation dans un thread séparé
         std::thread::spawn(move || {
@@ -400,6 +414,11 @@ impl XFinderApp {
                     let total_files = files.len();
 
                     for (i, file) in files.iter().enumerate() {
+                        // Vérifier si l'indexation est en pause
+                        while indexing_paused.load(Ordering::Relaxed) {
+                            std::thread::sleep(std::time::Duration::from_millis(100));
+                        }
+
                         if index.add_file(&mut writer, &file.path, &file.filename).is_ok() {
                             total_indexed += 1;
 
@@ -426,7 +445,7 @@ impl XFinderApp {
                                             .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                                             .map(|d| d.as_secs() as i64)
                                             .unwrap_or(now),
-                                        hash: None, // Pas de hash pour l'instant (performance)
+                                        hash: crate::hash::hash_file_fast(std::path::Path::new(&file.path)).ok(),
                                         indexed_at: now,
                                     };
                                     db_batch.push(file_record);
@@ -474,6 +493,25 @@ impl XFinderApp {
     // Rafraîchit l'index actuel (ajoute nouveaux fichiers par-dessus)
     pub fn refresh_index(&mut self) {
         self.start_indexing(false);
+    }
+
+    // Met en pause l'indexation en cours
+    pub fn pause_indexing(&mut self) {
+        if self.indexing_in_progress {
+            self.indexing_paused.store(true, Ordering::Relaxed);
+        }
+    }
+
+    // Reprend l'indexation en pause
+    pub fn resume_indexing(&mut self) {
+        if self.indexing_in_progress {
+            self.indexing_paused.store(false, Ordering::Relaxed);
+        }
+    }
+
+    // Vérifie si l'indexation est en pause
+    pub fn is_indexing_paused(&self) -> bool {
+        self.indexing_paused.load(Ordering::Relaxed)
     }
 
     // Vérifie si les chemins à indexer sont différents des derniers indexés
@@ -542,6 +580,8 @@ impl XFinderApp {
                 case_sensitive: self.search_case_sensitive,
                 search_in_filename: self.search_in_filename,
                 search_in_path: self.search_in_path,
+                fuzzy_search: self.search_fuzzy,
+                fuzzy_distance: self.fuzzy_distance,
             };
 
             // Cherche jusqu'à 10000 résultats pour infinite scroll
@@ -807,6 +847,16 @@ impl eframe::App for XFinderApp {
         // Traiter les événements du system tray
         self.process_tray_events(ctx, frame);
 
+        // Traiter le hotkey global Ctrl+Shift+F
+        if let Some(ref hotkey) = self.hotkey_manager {
+            if hotkey.is_triggered() {
+                // Restaurer la fenêtre depuis le tray
+                crate::system::show_in_taskbar();
+                crate::system::restore_window();
+                ctx.request_repaint();
+            }
+        }
+
         // Traiter les événements watchdog à chaque frame (low latency)
         self.process_watchdog_events();
 
@@ -823,8 +873,8 @@ impl eframe::App for XFinderApp {
         // Redemander un repaint pour traiter les événements en continu
         if self.watchdog_enabled || self.indexing_in_progress {
             ctx.request_repaint();
-        } else if self.system_tray.is_some() {
-            // Pour le tray, utiliser un délai de 200ms pour économiser les ressources
+        } else if self.system_tray.is_some() || self.hotkey_manager.is_some() {
+            // Pour le tray et hotkey, utiliser un délai de 200ms pour économiser les ressources
             ctx.request_repaint_after(std::time::Duration::from_millis(200));
         }
     }

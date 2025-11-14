@@ -5,7 +5,9 @@ pub mod tray;
 pub mod autostart;
 pub mod scheduler;
 pub mod window_restore;
+pub mod hotkey;
 
 pub use tray::SystemTray;
 pub use scheduler::Scheduler;
 pub use window_restore::{restore_window, hide_from_taskbar, show_in_taskbar};
+pub use hotkey::HotkeyManager;

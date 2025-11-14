@@ -164,6 +164,16 @@ impl Database {
     pub fn get_config(&self, key: &str) -> Result<Option<String>> {
         self.with_conn(|conn| queries::get_config(conn, key))
     }
+
+    /// Trouve tous les fichiers dupliqués (même hash blake3)
+    pub fn find_duplicates(&self) -> Result<Vec<queries::DuplicateGroup>> {
+        self.with_conn(|conn| queries::find_duplicates(conn))
+    }
+
+    /// Compte le nombre total de fichiers dupliqués et leur taille
+    pub fn count_duplicates(&self) -> Result<(usize, u64)> {
+        self.with_conn(|conn| queries::count_duplicates(conn))
+    }
 }
 
 #[cfg(test)]

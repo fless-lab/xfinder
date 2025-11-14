@@ -10,6 +10,7 @@ mod audio_player;
 mod database;
 mod config;
 mod system;
+mod hash;
 
 // Tests désactivés temporairement (à corriger)
 // #[cfg(test)]

@@ -55,6 +55,21 @@ pub fn render_main_ui(ctx: &egui::Context, app: &mut XFinderApp) {
                 changed = true;
             }
 
+            ui.separator();
+
+            if ui.checkbox(&mut app.search_fuzzy, "Fuzzy (tolérer fautes)").changed() {
+                changed = true;
+            }
+
+            // Slider pour ajuster la distance de Levenshtein (seulement si fuzzy activé)
+            if app.search_fuzzy {
+                ui.label("Distance:");
+                if ui.add(egui::Slider::new(&mut app.fuzzy_distance, 0..=2)
+                    .text("fautes")).changed() {
+                    changed = true;
+                }
+            }
+
             // Relancer la recherche si une option a changé et qu'il y a une query
             if changed && !app.search_query.trim().is_empty() {
                 app.perform_search();
