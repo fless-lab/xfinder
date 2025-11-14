@@ -11,7 +11,7 @@ use crate::ui::{render_main_ui, render_side_panel, render_top_panel, render_prev
 use crate::audio_player::AudioPlayer;
 use crate::database::Database;
 use crate::config::AppConfig;
-use crate::system::{SystemTray, Scheduler, restore_window};
+use crate::system::{SystemTray, Scheduler, restore_window, hide_from_taskbar, show_in_taskbar};
 use chrono::NaiveDate;
 
 // Message de progression de l'indexation
@@ -794,12 +794,11 @@ impl XFinderApp {
 
 impl eframe::App for XFinderApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        // Gérer la fermeture de fenêtre (minimize to tray)
+        // Gérer la fermeture de fenêtre (hide to tray)
         if ctx.input(|i| i.viewport().close_requested()) {
             if self.config.ui.minimize_to_tray && self.system_tray.is_some() {
-                // Minimiser au lieu de quitter (la fenêtre reste en barre des tâches)
-                // Note: On ne peut pas vraiment "cacher" dans le tray car egui arrête update() si Visible(false)
-                ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(true));
+                // Cacher complètement de la barre des tâches (hide to tray)
+                hide_from_taskbar();
                 ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             }
             // Sinon, laisser l'application se fermer normalement
