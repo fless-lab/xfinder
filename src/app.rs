@@ -741,7 +741,7 @@ impl XFinderApp {
 
         if let Some(ref watcher) = self.file_watcher {
             if let Some(ref index) = self.search_index {
-                match watcher.apply_events_to_index(
+                match watcher.apply_events_batch(
                     index,
                     self.database.as_ref(),
                     &self.excluded_extensions,
