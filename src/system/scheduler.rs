@@ -104,3 +104,59 @@ impl Default for Scheduler {
         Self::new(2, 0)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::AtomicUsize;
+
+    #[test]
+    fn test_scheduler_new() {
+        let scheduler = Scheduler::new(14, 30);
+        assert_eq!(scheduler.get_schedule(), (14, 30));
+        assert!(!scheduler.is_enabled());
+    }
+
+    #[test]
+    fn test_scheduler_clamp_values() {
+        // Heures et minutes invalides doivent être clampées
+        let scheduler = Scheduler::new(25, 70);
+        assert_eq!(scheduler.get_schedule(), (23, 59));
+    }
+
+    #[test]
+    fn test_scheduler_set_schedule() {
+        let scheduler = Scheduler::new(10, 0);
+        scheduler.set_schedule(15, 45);
+        assert_eq!(scheduler.get_schedule(), (15, 45));
+    }
+
+    #[test]
+    fn test_scheduler_default() {
+        let scheduler = Scheduler::default();
+        assert_eq!(scheduler.get_schedule(), (2, 0));
+    }
+
+    #[test]
+    fn test_scheduler_last_run_initially_none() {
+        let scheduler = Scheduler::new(10, 0);
+        assert!(scheduler.last_run().is_none());
+    }
+
+    #[test]
+    fn test_scheduler_start_stop() {
+        let counter = Arc::new(AtomicUsize::new(0));
+        let counter_clone = counter.clone();
+
+        let scheduler = Scheduler::new(10, 0);
+        scheduler.start(move || {
+            counter_clone.fetch_add(1, Ordering::Relaxed);
+        });
+
+        assert!(scheduler.is_enabled());
+
+        scheduler.stop();
+        thread::sleep(Duration::from_millis(100));
+        assert!(!scheduler.is_enabled());
+    }
+}
