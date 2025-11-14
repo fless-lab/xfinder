@@ -63,13 +63,15 @@ impl SystemTray {
             loop {
                 if let Ok(event) = menu_event_rx.recv() {
                     if event.id == show_id {
-                        // Restaurer immédiatement depuis ce thread (ne dépend pas de update())
+                        // Restaurer immédiatement (remettre dans taskbar + restaurer)
+                        crate::system::window_restore::show_in_taskbar();
                         crate::system::window_restore::restore_window();
                         let _ = tx.send(TrayEvent::Show);
                     } else if event.id == start_indexing_id {
                         let _ = tx.send(TrayEvent::StartIndexing);
                     } else if event.id == settings_id {
-                        // Restaurer immédiatement depuis ce thread (ne dépend pas de update())
+                        // Restaurer immédiatement (remettre dans taskbar + restaurer)
+                        crate::system::window_restore::show_in_taskbar();
                         crate::system::window_restore::restore_window();
                         let _ = tx.send(TrayEvent::Settings);
                     } else if event.id == quit_id {

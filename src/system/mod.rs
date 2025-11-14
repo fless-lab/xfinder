@@ -8,4 +8,4 @@ pub mod window_restore;
 
 pub use tray::SystemTray;
 pub use scheduler::Scheduler;
-pub use window_restore::restore_window;
+pub use window_restore::{restore_window, hide_from_taskbar, show_in_taskbar};
