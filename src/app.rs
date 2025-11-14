@@ -495,14 +495,13 @@ impl XFinderApp {
                                 }
                             }
 
-                            // Envoyer progression tous les 100 fichiers (optimisé)
-                            if i % 100 == 0 {
-                                let _ = progress_tx.send(IndexProgress {
-                                    indexed_count: total_indexed,
-                                    total_files,
-                                    current_path: file.filename.clone(),
-                                });
-                            }
+                            // Envoyer progression à chaque fichier pour une barre fluide
+                            // Le channel unbounded est non-bloquant et l'UI prend la dernière valeur
+                            let _ = progress_tx.send(IndexProgress {
+                                indexed_count: total_indexed,
+                                total_files,
+                                current_path: file.filename.clone(),
+                            });
                         }
                     }
                 }
