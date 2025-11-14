@@ -122,6 +122,19 @@ impl Default for SettingsTab {
     }
 }
 
+// Mode de l'application (Recherche classique vs Assist Me)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AppMode {
+    ClassicSearch,  // Mode par défaut : recherche Tantivy
+    AssistMe,       // Mode IA : recherche sémantique LEANN
+}
+
+impl Default for AppMode {
+    fn default() -> Self {
+        AppMode::ClassicSearch
+    }
+}
+
 pub struct XFinderApp {
     pub search_query: String,
     pub search_results: Vec<SearchResult>,      // Résultats filtrés/triés (affichés)
@@ -173,6 +186,12 @@ pub struct XFinderApp {
     pub editing_date_filter: bool,         // Mode édition pour le filtre de date
     pub date_filter_input: String,         // Input temporaire pour éditer la date
     progress_rx: Option<Receiver<IndexProgress>>,
+    // Dual-mode architecture
+    pub current_mode: AppMode,             // Mode actuel (Classique ou Assist Me)
+    // Assist Me state (Mode IA)
+    pub assist_me_query: String,           // Question en langage naturel
+    pub assist_me_results: Vec<String>,    // Sources trouvées (TODO: structure complète)
+    pub assist_me_loading: bool,           // Recherche sémantique en cours
     // System integration
     pub system_tray: Option<SystemTray>,
     pub scheduler: Option<Scheduler>,
@@ -267,6 +286,12 @@ impl Default for XFinderApp {
             editing_date_filter: false,
             date_filter_input: String::new(),
             progress_rx: None,
+            // Dual-mode architecture
+            current_mode: AppMode::default(),
+            // Assist Me state
+            assist_me_query: String::new(),
+            assist_me_results: Vec::new(),
+            assist_me_loading: false,
             // System integration
             system_tray: None,  // ⚡ Lazy loaded
             scheduler: None,  // Sera initialisé après si activé dans la config

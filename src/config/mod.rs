@@ -20,6 +20,9 @@ pub struct AppConfig {
 
     #[serde(default)]
     pub system: SystemConfig,
+
+    #[serde(default)]
+    pub assist_me: AssistMeConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -82,6 +85,29 @@ pub struct SystemConfig {
     pub hotkey_enabled: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AssistMeConfig {
+    /// Activer le mode Assist Me (recherche sémantique IA)
+    #[serde(default)]
+    pub enabled: bool,
+
+    /// Auto-indexer les nouveaux fichiers en arrière-plan
+    #[serde(default = "default_true")]
+    pub auto_index_new_files: bool,
+
+    /// Nombre de fichiers à traiter par batch
+    #[serde(default = "default_batch_size")]
+    pub batch_size: usize,
+
+    /// Chemin du modèle d'embeddings
+    #[serde(default = "default_model_path")]
+    pub model_path: String,
+
+    /// Index LEANN path
+    #[serde(default = "default_leann_index_path")]
+    pub leann_index_path: String,
+}
+
 // === Defaults ===
 
 fn default_scan_paths() -> Vec<String> {
@@ -140,6 +166,23 @@ fn default_true() -> bool {
     true
 }
 
+fn default_batch_size() -> usize {
+    10  // 10 fichiers par batch
+}
+
+fn default_model_path() -> String {
+    "models/all-MiniLM-L6-v2".to_string()
+}
+
+fn default_leann_index_path() -> String {
+    dirs::home_dir()
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
+        .join(".xfinder_index")
+        .join("leann_index")
+        .to_string_lossy()
+        .to_string()
+}
+
 impl Default for ExclusionsConfig {
     fn default() -> Self {
         Self {
@@ -184,6 +227,18 @@ impl Default for SystemConfig {
     }
 }
 
+impl Default for AssistMeConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,  // Désactivé par défaut
+            auto_index_new_files: true,
+            batch_size: default_batch_size(),
+            model_path: default_model_path(),
+            leann_index_path: default_leann_index_path(),
+        }
+    }
+}
+
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
@@ -192,6 +247,7 @@ impl Default for AppConfig {
             indexing: IndexingConfig::default(),
             ui: UiConfig::default(),
             system: SystemConfig::default(),
+            assist_me: AssistMeConfig::default(),
         }
     }
 }
