@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 
 use crate::search::{FileScanner, SearchIndex, SearchResult, FileWatcher, SearchOptions};
-use crate::ui::{render_main_ui, render_side_panel, render_top_panel, render_preview_panel, render_settings_modal, render_statistics_modal};
+use crate::ui::{render_main_ui, render_assist_me_ui, render_side_panel, render_top_panel, render_preview_panel, render_settings_modal, render_statistics_modal};
 use crate::audio_player::AudioPlayer;
 use crate::database::Database;
 use crate::config::AppConfig;
@@ -930,7 +930,17 @@ impl eframe::App for XFinderApp {
 
         render_top_panel(ctx, self);
         render_side_panel(ctx, self);
-        render_main_ui(ctx, self);
+
+        // Router selon le mode actuel
+        match self.current_mode {
+            AppMode::ClassicSearch => {
+                render_main_ui(ctx, self);
+            }
+            AppMode::AssistMe => {
+                render_assist_me_ui(ctx, self);
+            }
+        }
+
         render_preview_panel(ctx, self);
         render_settings_modal(ctx, self);
         render_statistics_modal(ctx, self);
