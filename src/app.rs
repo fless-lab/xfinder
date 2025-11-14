@@ -419,6 +419,11 @@ impl XFinderApp {
                             std::thread::sleep(std::time::Duration::from_millis(100));
                         }
 
+                        // Yield tous les 1000 fichiers pour ne pas monopoliser le CPU
+                        if i % 1000 == 0 && i > 0 {
+                            std::thread::yield_now();
+                        }
+
                         if index.add_file(&mut writer, &file.path, &file.filename).is_ok() {
                             total_indexed += 1;
 
