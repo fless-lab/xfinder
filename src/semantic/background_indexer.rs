@@ -46,12 +46,14 @@ pub struct IndexingStats {
 }
 
 /// Thread d'indexation sémantique en background
+#[derive(Clone)]
 pub struct BackgroundIndexer {
     /// Sender pour envoyer des messages au thread
     tx: Sender<IndexingMessage>,
 
-    /// Handle du thread
-    handle: Option<JoinHandle<()>>,
+    /// Handle du thread (non clonable, seulement dans l'instance principale)
+    #[allow(dead_code)]
+    handle: Option<Arc<Mutex<Option<JoinHandle<()>>>>>,
 
     /// Statistiques partagées
     stats: Arc<Mutex<IndexingStats>>,
@@ -77,7 +79,7 @@ impl BackgroundIndexer {
 
         Ok(Self {
             tx,
-            handle: Some(handle),
+            handle: Some(Arc::new(Mutex::new(Some(handle)))),
             stats,
         })
     }
@@ -259,6 +261,19 @@ impl BackgroundIndexer {
             .context("Failed to send IndexFile message")
     }
 
+    /// Envoie un fichier à indexer (version simplifiée avec auto file_id)
+    pub fn enqueue_file(&self, path: String) -> Result<()> {
+        let path_buf = PathBuf::from(path);
+        // Utiliser le hash du chemin comme file_id temporaire
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        let mut hasher = DefaultHasher::new();
+        path_buf.hash(&mut hasher);
+        let file_id = hasher.finish() as i64;
+
+        self.queue_file(path_buf, file_id)
+    }
+
     /// Envoie un batch de fichiers à indexer
     pub fn queue_batch(&self, files: Vec<(PathBuf, i64)>) -> Result<()> {
         self.tx
@@ -279,10 +294,14 @@ impl BackgroundIndexer {
             .send(IndexingMessage::Stop)
             .context("Failed to send Stop message")?;
 
-        if let Some(handle) = self.handle.take() {
-            handle
-                .join()
-                .map_err(|_| anyhow::anyhow!("Failed to join background thread"))?;
+        if let Some(handle_arc) = &self.handle {
+            if let Ok(mut handle_guard) = handle_arc.lock() {
+                if let Some(handle) = handle_guard.take() {
+                    handle
+                        .join()
+                        .map_err(|_| anyhow::anyhow!("Failed to join background thread"))?;
+                }
+            }
         }
 
         Ok(())

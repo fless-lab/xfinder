@@ -137,6 +137,16 @@ impl Default for AppMode {
     }
 }
 
+// Source trouvée par Assist Me
+#[derive(Debug, Clone)]
+pub struct AssistMeSource {
+    pub file_path: String,
+    pub filename: String,
+    pub excerpt: String,
+    pub score: f32,
+    pub chunk_index: usize,
+}
+
 pub struct XFinderApp {
     pub search_query: String,
     pub search_results: Vec<SearchResult>,      // Résultats filtrés/triés (affichés)
@@ -192,7 +202,7 @@ pub struct XFinderApp {
     pub current_mode: AppMode,             // Mode actuel (Classique ou Assist Me)
     // Assist Me state (Mode IA)
     pub assist_me_query: String,           // Question en langage naturel
-    pub assist_me_results: Vec<String>,    // Sources trouvées (TODO: structure complète)
+    pub assist_me_results: Vec<AssistMeSource>,  // Sources trouvées avec scores
     pub assist_me_loading: bool,           // Recherche sémantique en cours
     // Semantic indexing (Assist Me backend)
     semantic_indexer: Option<Arc<Mutex<SemanticIndexer>>>,
@@ -404,6 +414,80 @@ impl XFinderApp {
                 self.error_message = Some(format!("❌ Erreur SemanticIndexer: {}. Vérifiez que Python + sentence-transformers + LEANN sont installés.", e));
             }
         }
+    }
+
+    /// Démarre l'indexation sémantique des fichiers configurés
+    pub fn start_semantic_indexing(&mut self) {
+        // Initialiser le système sémantique si pas encore fait
+        if self.semantic_indexer.is_none() {
+            self.init_semantic_indexing();
+        }
+
+        // Vérifier que le système est bien initialisé
+        if self.semantic_indexer.is_none() || self.background_indexer.is_none() {
+            self.error_message = Some("❌ Système sémantique non disponible".to_string());
+            return;
+        }
+
+        // Éviter de lancer plusieurs indexations simultanées
+        if self.semantic_indexing_in_progress {
+            return;
+        }
+
+        self.semantic_indexing_in_progress = true;
+        self.error_message = Some("🚀 Indexation sémantique démarrée...".to_string());
+
+        // Collecter les fichiers à indexer
+        use crate::search::FileScanner;
+        let scanner = FileScanner::new();
+
+        // TODO: Utiliser config.assist_me.scan_paths quand dual-mode config sera implémenté
+        let scan_paths = self.scan_paths.clone();
+        let excluded_extensions = self.excluded_extensions.clone();
+        let excluded_patterns = self.excluded_patterns.clone();
+        let excluded_dirs = self.excluded_dirs.clone();
+
+        // Cloner le background_indexer pour le thread
+        let bg_indexer = self.background_indexer.as_ref().unwrap().clone();
+
+        // Lancer dans un thread séparé pour ne pas bloquer l'UI
+        std::thread::spawn(move || {
+            let mut total_files = 0;
+
+            for path_str in &scan_paths {
+                let scan_path = PathBuf::from(path_str);
+
+                if !scan_path.exists() {
+                    eprintln!("Chemin inexistant: {}", path_str);
+                    continue;
+                }
+
+                // Scanner les fichiers (sans limite pour semantic)
+                match scanner.scan_directory(
+                    &scan_path,
+                    usize::MAX, // Pas de limite
+                    &excluded_extensions,
+                    &excluded_patterns,
+                    &excluded_dirs
+                ) {
+                    Ok(files) => {
+                        for file_entry in files {
+                            // Enqueue le fichier pour indexation sémantique
+                            if let Err(e) = bg_indexer.enqueue_file(file_entry.path.clone()) {
+                                eprintln!("Erreur enqueue: {}", e);
+                            } else {
+                                total_files += 1;
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Erreur scan {}: {}", path_str, e);
+                    }
+                }
+            }
+
+            println!("✅ {} fichiers envoyés pour indexation sémantique", total_files);
+        });
     }
 
     /// Sauvegarde la configuration actuelle dans le fichier TOML
@@ -944,6 +1028,28 @@ impl XFinderApp {
             self.load_index();
         }
     }
+
+    /// Traite les statistiques d'indexation sémantique
+    fn process_semantic_indexing_stats(&mut self) {
+        if let Some(ref bg_indexer) = self.background_indexer {
+            let stats = bg_indexer.stats();
+            self.semantic_stats = stats.clone();
+
+            // Si plus d'indexation en cours et qu'on était en train d'indexer
+            if self.semantic_indexing_in_progress && !stats.is_indexing {
+                // Vérifier si vraiment terminé (pas juste entre deux fichiers)
+                // On considère terminé si le fichier courant est vide
+                if stats.current_file.is_none() {
+                    self.semantic_indexing_in_progress = false;
+                    self.error_message = Some(format!(
+                        "✅ Indexation sémantique terminée: {} fichiers, {} chunks",
+                        stats.files_indexed,
+                        stats.chunks_created
+                    ));
+                }
+            }
+        }
+    }
 }
 
 impl eframe::App for XFinderApp {
@@ -981,6 +1087,9 @@ impl eframe::App for XFinderApp {
         // Traiter la progression de l'indexation
         self.process_indexing_progress();
 
+        // Traiter les statistiques d'indexation sémantique
+        self.process_semantic_indexing_stats();
+
         render_top_panel(ctx, self);
         render_side_panel(ctx, self);
 
@@ -999,7 +1108,7 @@ impl eframe::App for XFinderApp {
         render_statistics_modal(ctx, self);
 
         // Redemander un repaint pour traiter les événements en continu
-        if self.watchdog_enabled || self.indexing_in_progress {
+        if self.watchdog_enabled || self.indexing_in_progress || self.semantic_indexing_in_progress {
             ctx.request_repaint();
         } else if self.system_tray.is_some() || self.hotkey_manager.is_some() {
             // Pour le tray et hotkey, utiliser un délai de 200ms pour économiser les ressources

@@ -71,7 +71,7 @@ pub fn render_assist_me_ui(ctx: &egui::Context, app: &mut XFinderApp) {
     });
 }
 
-fn render_suggestions(ui: &mut egui::Ui, _app: &mut XFinderApp) {
+fn render_suggestions(ui: &mut egui::Ui, app: &mut XFinderApp) {
     ui.vertical_centered(|ui| {
         ui.add_space(40.0);
         ui.heading("💡 Exemples de questions");
@@ -96,6 +96,21 @@ fn render_suggestions(ui: &mut egui::Ui, _app: &mut XFinderApp) {
         ui.separator();
         ui.add_space(10.0);
 
+        // Bouton d'indexation manuelle
+        ui.horizontal(|ui| {
+            if ui.button("🚀 Démarrer l'indexation sémantique").clicked() {
+                // Trigger semantic indexing
+                app.start_semantic_indexing();
+            }
+
+            if app.semantic_indexing_in_progress {
+                ui.spinner();
+                ui.label(format!("📊 {} fichiers indexés", app.semantic_stats.files_indexed));
+            }
+        });
+
+        ui.add_space(10.0);
+
         // Info sur Assist Me
         ui.label("ℹ️ Mode Assist Me - Recherche sémantique");
         ui.label("Posez des questions en langage naturel pour trouver des documents pertinents.");
@@ -103,27 +118,66 @@ fn render_suggestions(ui: &mut egui::Ui, _app: &mut XFinderApp) {
     });
 }
 
-fn render_source_card(ui: &mut egui::Ui, index: usize, source: &str) {
+fn render_source_card(ui: &mut egui::Ui, index: usize, source: &crate::app::AssistMeSource) {
     egui::Frame::none()
         .fill(ui.visuals().faint_bg_color)
-        .inner_margin(egui::Margin::same(10.0))
-        .rounding(egui::Rounding::same(5.0))
+        .inner_margin(egui::Margin::same(12.0))
+        .rounding(egui::Rounding::same(6.0))
+        .stroke(egui::Stroke::new(1.0, ui.visuals().widgets.noninteractive.bg_stroke.color))
         .show(ui, |ui| {
+            // Header : Score + Filename
             ui.horizontal(|ui| {
-                ui.label(format!("#{}", index));
+                // Score badge
+                let score_color = if source.score > 0.8 {
+                    egui::Color32::from_rgb(40, 167, 69) // vert
+                } else if source.score > 0.6 {
+                    egui::Color32::from_rgb(255, 193, 7) // orange
+                } else {
+                    egui::Color32::from_rgb(220, 53, 69) // rouge
+                };
+
+                ui.label(
+                    egui::RichText::new(format!("#{} • {:.0}%", index, source.score * 100.0))
+                        .color(score_color)
+                        .strong()
+                );
+
                 ui.separator();
-                ui.label(source);
+
+                // Filename (cliquable)
+                if ui.link(egui::RichText::new(&source.filename).strong()).clicked() {
+                    // Ouvrir le fichier
+                    let _ = opener::open(&source.file_path);
+                }
             });
 
-            ui.add_space(5.0);
+            ui.add_space(8.0);
 
+            // Excerpt (extrait du chunk)
+            ui.label(
+                egui::RichText::new(&source.excerpt)
+                    .italics()
+                    .color(ui.visuals().text_color())
+            );
+
+            ui.add_space(8.0);
+
+            // Footer : Actions
             ui.horizontal(|ui| {
-                if ui.button("📄 Ouvrir").clicked() {
-                    // TODO: Ouvrir le fichier
-                }
-                if ui.button("📁 Dossier").clicked() {
-                    // TODO: Ouvrir le dossier
-                }
+                ui.label(
+                    egui::RichText::new(format!("📁 {}", &source.file_path))
+                        .small()
+                        .color(ui.visuals().weak_text_color())
+                );
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.small_button("📂 Dossier").clicked() {
+                        // Ouvrir le dossier parent
+                        if let Some(parent) = std::path::Path::new(&source.file_path).parent() {
+                            let _ = opener::open(parent);
+                        }
+                    }
+                });
             });
         });
 }
