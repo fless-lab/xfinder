@@ -11,6 +11,7 @@ mod database;
 mod config;
 mod system;
 mod hash;
+mod semantic;
 
 // Tests désactivés temporairement (à corriger)
 // #[cfg(test)]

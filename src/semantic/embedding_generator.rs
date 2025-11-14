@@ -140,7 +140,7 @@ impl EmbeddingGenerator {
     }
 
     /// Convertit un numpy array en Vec<Vec<f32>>
-    fn numpy_to_vec(&self, py: Python, numpy_array: &Bound<PyAny>) -> Result<Vec<Vec<f32>>> {
+    fn numpy_to_vec(&self, _py: Python, numpy_array: &Bound<PyAny>) -> Result<Vec<Vec<f32>>> {
         // Obtenir le shape
         let shape: Vec<usize> = numpy_array
             .getattr("shape")?

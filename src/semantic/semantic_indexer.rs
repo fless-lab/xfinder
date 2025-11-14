@@ -134,7 +134,7 @@ impl SemanticIndexer {
         };
 
         // 6. Ajouter chaque chunk à LEANN
-        let mut leann = self.leann_index.lock().unwrap();
+        let leann = self.leann_index.lock().unwrap();
 
         for (chunk, embedding) in chunks.iter().zip(embeddings.iter()) {
             // Générer un ID unique pour le chunk

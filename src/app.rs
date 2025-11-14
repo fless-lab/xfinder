@@ -13,6 +13,8 @@ use crate::audio_player::AudioPlayer;
 use crate::database::Database;
 use crate::config::AppConfig;
 use crate::system::{SystemTray, Scheduler, restore_window, hide_from_taskbar, show_in_taskbar};
+use crate::semantic::{SemanticIndexer, BackgroundIndexer, IndexingStats};
+use std::sync::Mutex;
 use chrono::NaiveDate;
 
 // Message de progression de l'indexation
@@ -192,6 +194,11 @@ pub struct XFinderApp {
     pub assist_me_query: String,           // Question en langage naturel
     pub assist_me_results: Vec<String>,    // Sources trouvées (TODO: structure complète)
     pub assist_me_loading: bool,           // Recherche sémantique en cours
+    // Semantic indexing (Assist Me backend)
+    semantic_indexer: Option<Arc<Mutex<SemanticIndexer>>>,
+    background_indexer: Option<BackgroundIndexer>,
+    pub semantic_indexing_in_progress: bool,
+    pub semantic_stats: IndexingStats,
     // System integration
     pub system_tray: Option<SystemTray>,
     pub scheduler: Option<Scheduler>,
@@ -292,6 +299,11 @@ impl Default for XFinderApp {
             assist_me_query: String::new(),
             assist_me_results: Vec::new(),
             assist_me_loading: false,
+            // Semantic indexing (lazy loaded si Assist Me activé)
+            semantic_indexer: None,
+            background_indexer: None,
+            semantic_indexing_in_progress: false,
+            semantic_stats: IndexingStats::default(),
             // System integration
             system_tray: None,  // ⚡ Lazy loaded
             scheduler: None,  // Sera initialisé après si activé dans la config
