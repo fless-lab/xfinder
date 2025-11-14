@@ -27,15 +27,24 @@ pub fn render_top_panel(ctx: &egui::Context, app: &mut XFinderApp) {
                 "🤖 Assist Me"
             ).clicked() {
                 app.current_mode = AppMode::AssistMe;
+                // Initialiser le système sémantique à la demande
+                app.init_semantic_indexing();
             }
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("📊 Statistiques").clicked() {
                     app.show_statistics_modal = true;
                 }
+
+                // Afficher l'état d'indexation selon le mode
                 if app.indexing_in_progress {
                     ui.spinner();
-                    ui.label("Indexation en cours...");
+                    ui.label("Indexation classique...");
+                }
+
+                if app.semantic_indexing_in_progress {
+                    ui.spinner();
+                    ui.label(format!("Indexation IA ({} fichiers)...", app.semantic_stats.files_indexed));
                 }
             });
         });

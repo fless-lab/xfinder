@@ -365,6 +365,47 @@ impl XFinderApp {
         self.lazy_initialized = true;
     }
 
+    /// Initialise le système d'indexation sémantique (Assist Me)
+    /// Appelé à la demande quand l'utilisateur active le mode Assist Me
+    pub fn init_semantic_indexing(&mut self) {
+        // Si déjà initialisé, ne rien faire
+        if self.semantic_indexer.is_some() {
+            return;
+        }
+
+        // Vérifier si Assist Me est activé
+        if !self.config.assist_me.enabled {
+            return;
+        }
+
+        // Chemin de l'index LEANN
+        let leann_index_path = &self.config.assist_me.leann_index_path;
+        let model_name = "all-MiniLM-L6-v2"; // TODO: from config
+
+        // Créer le SemanticIndexer
+        match SemanticIndexer::new(leann_index_path, model_name) {
+            Ok(indexer) => {
+                let indexer_arc = Arc::new(Mutex::new(indexer));
+
+                // Démarrer le BackgroundIndexer
+                let batch_size = self.config.assist_me.batch_size;
+                match BackgroundIndexer::start(Arc::clone(&indexer_arc), batch_size) {
+                    Ok(bg_indexer) => {
+                        self.semantic_indexer = Some(indexer_arc);
+                        self.background_indexer = Some(bg_indexer);
+                        self.error_message = Some("✅ Assist Me initialisé (prêt à indexer)".to_string());
+                    }
+                    Err(e) => {
+                        self.error_message = Some(format!("❌ Erreur BackgroundIndexer: {}", e));
+                    }
+                }
+            }
+            Err(e) => {
+                self.error_message = Some(format!("❌ Erreur SemanticIndexer: {}. Vérifiez que Python + sentence-transformers + LEANN sont installés.", e));
+            }
+        }
+    }
+
     /// Sauvegarde la configuration actuelle dans le fichier TOML
     pub fn save_config(&mut self) {
         // Synchroniser les valeurs actuelles de l'app vers la config
