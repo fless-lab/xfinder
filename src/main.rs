@@ -9,6 +9,7 @@ mod ui;
 mod audio_player;
 mod database;
 mod config;
+mod system;
 
 #[cfg(test)]
 mod app_test;

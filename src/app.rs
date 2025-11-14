@@ -11,7 +11,8 @@ use crate::ui::{render_main_ui, render_side_panel, render_top_panel, render_prev
 use crate::audio_player::AudioPlayer;
 use crate::database::Database;
 use crate::config::AppConfig;
-use chrono::{DateTime, Local, NaiveDate};
+use crate::system::{SystemTray, Scheduler, restore_window};
+use chrono::NaiveDate;
 
 // Message de progression de l'indexation
 #[derive(Debug, Clone)]
@@ -111,6 +112,7 @@ impl SortBy {
 pub enum SettingsTab {
     Exclusions,
     General,
+    System,
 }
 
 impl Default for SettingsTab {
@@ -167,6 +169,9 @@ pub struct XFinderApp {
     pub editing_date_filter: bool,         // Mode édition pour le filtre de date
     pub date_filter_input: String,         // Input temporaire pour éditer la date
     progress_rx: Option<Receiver<IndexProgress>>,
+    // System integration
+    pub system_tray: Option<SystemTray>,
+    pub scheduler: Option<Scheduler>,
 }
 
 #[derive(Default)]
@@ -260,6 +265,9 @@ impl Default for XFinderApp {
             editing_date_filter: false,
             date_filter_input: String::new(),
             progress_rx: None,
+            // System integration
+            system_tray: SystemTray::new().ok(),
+            scheduler: None,  // Sera initialisé après si activé dans la config
         }
     }
 }
@@ -714,6 +722,37 @@ impl XFinderApp {
     }
 
     // Traiter les messages de progression de l'indexation
+    fn process_tray_events(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        if let Some(ref tray) = self.system_tray {
+            use crate::system::tray::TrayEvent;
+            for event in tray.poll_events() {
+                match event {
+                    TrayEvent::Show => {
+                        // La fenêtre a déjà été restaurée par le thread du tray
+                        ctx.request_repaint();
+                    }
+                    TrayEvent::StartIndexing => {
+                        // Lancer l'indexation
+                        if !self.indexing_in_progress {
+                            self.start_indexing(true);
+                        }
+                    }
+                    TrayEvent::Settings => {
+                        // La fenêtre a déjà été restaurée par le thread du tray
+                        // Il faut juste ouvrir le modal
+                        self.show_settings_modal = true;
+                        ctx.request_repaint();
+                    }
+                    TrayEvent::Quit => {
+                        // Quitter l'application vraiment (forcer la fermeture)
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                        std::process::exit(0);
+                    }
+                }
+            }
+        }
+    }
+
     fn process_indexing_progress(&mut self) {
         let mut is_done = false;
         let mut final_count = 0;
@@ -754,7 +793,21 @@ impl XFinderApp {
 }
 
 impl eframe::App for XFinderApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        // Gérer la fermeture de fenêtre (minimize to tray)
+        if ctx.input(|i| i.viewport().close_requested()) {
+            if self.config.ui.minimize_to_tray && self.system_tray.is_some() {
+                // Minimiser au lieu de quitter (la fenêtre reste en barre des tâches)
+                // Note: On ne peut pas vraiment "cacher" dans le tray car egui arrête update() si Visible(false)
+                ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(true));
+                ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            }
+            // Sinon, laisser l'application se fermer normalement
+        }
+
+        // Traiter les événements du system tray
+        self.process_tray_events(ctx, frame);
+
         // Traiter les événements watchdog à chaque frame (low latency)
         self.process_watchdog_events();
 
@@ -771,6 +824,9 @@ impl eframe::App for XFinderApp {
         // Redemander un repaint pour traiter les événements en continu
         if self.watchdog_enabled || self.indexing_in_progress {
             ctx.request_repaint();
+        } else if self.system_tray.is_some() {
+            // Pour le tray, utiliser un délai de 200ms pour économiser les ressources
+            ctx.request_repaint_after(std::time::Duration::from_millis(200));
         }
     }
 }
