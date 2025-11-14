@@ -17,6 +17,9 @@ pub struct AppConfig {
 
     #[serde(default)]
     pub ui: UiConfig,
+
+    #[serde(default)]
+    pub system: SystemConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,6 +56,24 @@ pub struct UiConfig {
 
     #[serde(default)]
     pub watchdog_enabled: bool,
+
+    #[serde(default)]
+    pub minimize_to_tray: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SystemConfig {
+    #[serde(default)]
+    pub autostart_enabled: bool,
+
+    #[serde(default)]
+    pub scheduler_enabled: bool,
+
+    #[serde(default = "default_scheduler_hour")]
+    pub scheduler_hour: u32,
+
+    #[serde(default = "default_scheduler_minute")]
+    pub scheduler_minute: u32,
 }
 
 // === Defaults ===
@@ -101,6 +122,14 @@ fn default_results_display_limit() -> usize {
     50
 }
 
+fn default_scheduler_hour() -> u32 {
+    2  // 2h AM
+}
+
+fn default_scheduler_minute() -> u32 {
+    0
+}
+
 impl Default for ExclusionsConfig {
     fn default() -> Self {
         Self {
@@ -127,6 +156,18 @@ impl Default for UiConfig {
         Self {
             results_display_limit: default_results_display_limit(),
             watchdog_enabled: false,
+            minimize_to_tray: true,
+        }
+    }
+}
+
+impl Default for SystemConfig {
+    fn default() -> Self {
+        Self {
+            autostart_enabled: false,
+            scheduler_enabled: false,
+            scheduler_hour: default_scheduler_hour(),
+            scheduler_minute: default_scheduler_minute(),
         }
     }
 }
@@ -138,6 +179,7 @@ impl Default for AppConfig {
             exclusions: ExclusionsConfig::default(),
             indexing: IndexingConfig::default(),
             ui: UiConfig::default(),
+            system: SystemConfig::default(),
         }
     }
 }

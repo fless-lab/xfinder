@@ -33,6 +33,14 @@ opener = "0.7"
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"
 
+# === System Integration ===
+tray-icon = "0.14"
+tokio = { version = "1", features = ["rt", "time", "macros"] }
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.52"
+windows-sys = { version = "0.52", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+
 # === Media ===
 rodio = "0.17"
 pdf-extract = "0.7"

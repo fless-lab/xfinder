@@ -27,6 +27,9 @@ pub fn render_settings_modal(ctx: &egui::Context, app: &mut XFinderApp) {
                     if ui.selectable_label(app.settings_tab == SettingsTab::General, "⚙️ Général").clicked() {
                         app.settings_tab = SettingsTab::General;
                     }
+                    if ui.selectable_label(app.settings_tab == SettingsTab::System, "🖥️ Système").clicked() {
+                        app.settings_tab = SettingsTab::System;
+                    }
                 });
 
                 ui.separator();
@@ -40,6 +43,7 @@ pub fn render_settings_modal(ctx: &egui::Context, app: &mut XFinderApp) {
                         match app.settings_tab {
                             SettingsTab::Exclusions => render_exclusions_tab(ui, app),
                             SettingsTab::General => render_general_tab(ui, app),
+                            SettingsTab::System => render_system_tab(ui, app),
                         }
                     });
 
@@ -257,4 +261,148 @@ fn render_general_tab(ui: &mut egui::Ui, app: &mut XFinderApp) {
     ui.add_space(15.0);
     ui.colored_label(egui::Color32::from_rgb(150, 150, 150),
         "💡 Ces paramètres sont dans la sidebar pour un accès rapide");
+}
+
+fn render_system_tab(ui: &mut egui::Ui, app: &mut XFinderApp) {
+    ui.heading("Paramètres système");
+    ui.add_space(10.0);
+
+    // Minimize to tray
+    ui.label("Comportement de la fenêtre:");
+    ui.add_space(5.0);
+
+    let mut minimize_to_tray = app.config.ui.minimize_to_tray;
+    if ui.checkbox(&mut minimize_to_tray, "Minimiser dans la barre système au lieu de quitter").changed() {
+        app.config.ui.minimize_to_tray = minimize_to_tray;
+        app.save_config();
+    }
+    ui.small("La fenêtre se masquera dans le system tray lors de la fermeture");
+
+    ui.add_space(20.0);
+    ui.separator();
+    ui.add_space(15.0);
+
+    // Auto-start
+    ui.heading("Démarrage automatique");
+    ui.add_space(5.0);
+
+    #[cfg(windows)]
+    {
+        use crate::system::autostart;
+
+        let is_enabled = autostart::is_autostart_enabled();
+        let mut autostart_enabled = app.config.system.autostart_enabled;
+
+        if ui.checkbox(&mut autostart_enabled, "Démarrer xfinder au démarrage de Windows").changed() {
+            app.config.system.autostart_enabled = autostart_enabled;
+
+            // Appliquer immédiatement
+            if autostart_enabled {
+                if let Err(e) = autostart::enable_autostart() {
+                    eprintln!("Erreur activation auto-start: {}", e);
+                    app.config.system.autostart_enabled = false;
+                }
+            } else {
+                if let Err(e) = autostart::disable_autostart() {
+                    eprintln!("Erreur désactivation auto-start: {}", e);
+                }
+            }
+
+            app.save_config();
+        }
+
+        if is_enabled {
+            ui.small("✓ Actif dans le registre Windows");
+        } else {
+            ui.small("✗ Inactif");
+        }
+    }
+
+    #[cfg(not(windows))]
+    {
+        ui.label("⚠️ Auto-start non supporté sur cette plateforme");
+        ui.small("Cette fonctionnalité est uniquement disponible sur Windows");
+    }
+
+    ui.add_space(20.0);
+    ui.separator();
+    ui.add_space(15.0);
+
+    // Scheduler
+    ui.heading("Planification des indexations");
+    ui.add_space(5.0);
+
+    let mut scheduler_enabled = app.config.system.scheduler_enabled;
+    if ui.checkbox(&mut scheduler_enabled, "Activer l'indexation planifiée automatique").changed() {
+        app.config.system.scheduler_enabled = scheduler_enabled;
+
+        // TODO: Démarrer/arrêter le scheduler
+        if scheduler_enabled {
+            // Créer et démarrer le scheduler si pas déjà fait
+            if app.scheduler.is_none() {
+                use crate::system::Scheduler;
+                let scheduler = Scheduler::new(
+                    app.config.system.scheduler_hour,
+                    app.config.system.scheduler_minute
+                );
+                // TODO: Démarrer avec callback d'indexation
+                app.scheduler = Some(scheduler);
+            }
+        } else {
+            // Arrêter le scheduler
+            app.scheduler = None;
+        }
+
+        app.save_config();
+    }
+
+    ui.add_space(10.0);
+
+    // Heure de planification
+    ui.horizontal(|ui| {
+        ui.label("Heure d'indexation:");
+        ui.add_space(10.0);
+
+        let mut hour = app.config.system.scheduler_hour;
+        let mut minute = app.config.system.scheduler_minute;
+
+        if ui.add(egui::DragValue::new(&mut hour).speed(1).clamp_range(0..=23)).changed() {
+            app.config.system.scheduler_hour = hour;
+            if let Some(ref scheduler) = app.scheduler {
+                scheduler.set_schedule(hour, minute);
+            }
+            app.save_config();
+        }
+
+        ui.label("h");
+
+        if ui.add(egui::DragValue::new(&mut minute).speed(1).clamp_range(0..=59)).changed() {
+            app.config.system.scheduler_minute = minute;
+            if let Some(ref scheduler) = app.scheduler {
+                scheduler.set_schedule(hour, minute);
+            }
+            app.save_config();
+        }
+
+        ui.label("min");
+    });
+
+    ui.small(format!("L'indexation sera lancée automatiquement à {:02}:{:02}",
+        app.config.system.scheduler_hour, app.config.system.scheduler_minute));
+
+    ui.add_space(10.0);
+
+    // Dernière exécution
+    if let Some(ref scheduler) = app.scheduler {
+        if let Some(last_run) = scheduler.last_run() {
+            ui.small(format!("Dernière exécution: {}",
+                last_run.format("%Y-%m-%d %H:%M:%S")));
+        } else {
+            ui.small("Aucune exécution encore");
+        }
+    }
+
+    ui.add_space(15.0);
+    ui.colored_label(egui::Color32::from_rgb(150, 150, 150),
+        "💡 L'indexation planifiée s'exécutera en arrière-plan à l'heure configurée");
 }
