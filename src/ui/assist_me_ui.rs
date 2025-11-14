@@ -21,13 +21,11 @@ pub fn render_assist_me_ui(ctx: &egui::Context, app: &mut XFinderApp) {
                 );
 
                 if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                    // TODO: Lancer recherche sémantique
-                    app.assist_me_loading = true;
+                    app.perform_semantic_search();
                 }
 
                 if ui.button("🔍 Rechercher").clicked() {
-                    // TODO: Lancer recherche sémantique
-                    app.assist_me_loading = true;
+                    app.perform_semantic_search();
                 }
             });
 
@@ -87,7 +85,8 @@ fn render_suggestions(ui: &mut egui::Ui, app: &mut XFinderApp) {
 
         for suggestion in suggestions {
             if ui.button(format!("💬 {}", suggestion)).clicked() {
-                // TODO: Remplir query avec suggestion
+                app.assist_me_query = suggestion.to_string();
+                app.perform_semantic_search();
             }
             ui.add_space(5.0);
         }

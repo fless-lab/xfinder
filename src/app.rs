@@ -1029,6 +1029,51 @@ impl XFinderApp {
         }
     }
 
+    /// Effectue une recherche sémantique (Assist Me)
+    pub fn perform_semantic_search(&mut self) {
+        // Vérifier qu'il y a une query
+        if self.assist_me_query.trim().is_empty() {
+            return;
+        }
+
+        // Vérifier que le système sémantique est initialisé
+        if self.semantic_indexer.is_none() {
+            self.error_message = Some("❌ Système sémantique non initialisé. Passez en mode Assist Me d'abord.".to_string());
+            return;
+        }
+
+        self.assist_me_loading = true;
+        self.assist_me_results.clear();
+
+        let query = self.assist_me_query.clone();
+        let indexer = self.semantic_indexer.as_ref().unwrap().clone();
+        // TODO: Utiliser database pour récupérer les chemins de fichiers
+        // let database = self.database.clone();
+
+        // Lancer la recherche dans un thread séparé
+        std::thread::spawn(move || {
+            // TODO: Envoyer les résultats via un channel
+            // Pour l'instant, juste afficher dans la console
+            match indexer.lock().unwrap().search(&query, 10) {
+                Ok(results) => {
+                    println!("🔍 Résultats sémantiques pour '{}': {} chunks trouvés", query, results.len());
+
+                    for (chunk_id, distance) in &results {
+                        let (file_id, chunk_index) = crate::semantic::SemanticIndexer::decode_chunk_id(*chunk_id);
+                        println!("  - Chunk #{} (file_id={}, chunk={}, distance={:.3})", chunk_id, file_id, chunk_index, distance);
+
+                        // TODO: Récupérer le chemin du fichier depuis la database
+                        // TODO: Récupérer le texte du chunk
+                        // TODO: Envoyer au channel pour update UI
+                    }
+                }
+                Err(e) => {
+                    eprintln!("❌ Erreur recherche sémantique: {}", e);
+                }
+            }
+        });
+    }
+
     /// Traite les statistiques d'indexation sémantique
     fn process_semantic_indexing_stats(&mut self) {
         if let Some(ref bg_indexer) = self.background_indexer {
