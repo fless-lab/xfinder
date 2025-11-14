@@ -46,10 +46,11 @@ pyo3 = { version = "0.21", features = ["auto-initialize"] }
 winreg = "0.52"
 windows-sys = { version = "0.52", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
 
-# === Media ===
+# === Media & Document Extraction ===
 rodio = "0.17"
 pdf-extract = "0.7"
 mp4parse = "0.17"
+docx-rs = "0.4"
 
 [dev-dependencies]
 tempfile = "3.8"
