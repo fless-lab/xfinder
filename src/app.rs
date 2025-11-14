@@ -450,16 +450,16 @@ impl XFinderApp {
                                     };
                                     db_batch.push(file_record);
 
-                                    // Batch insert tous les 1000 fichiers
-                                    if db_batch.len() >= 1000 {
+                                    // Batch insert tous les 5000 fichiers (optimisé)
+                                    if db_batch.len() >= 5000 {
                                         let _ = db.batch_upsert_files(&db_batch);
                                         db_batch.clear();
                                     }
                                 }
                             }
 
-                            // Envoyer progression tous les 10 fichiers
-                            if i % 10 == 0 {
+                            // Envoyer progression tous les 100 fichiers (optimisé)
+                            if i % 100 == 0 {
                                 let _ = progress_tx.send(IndexProgress {
                                     indexed_count: total_indexed,
                                     total_files,

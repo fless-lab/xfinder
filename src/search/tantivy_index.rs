@@ -143,12 +143,13 @@ impl SearchIndex {
 
     // Crée un IndexWriter pour commencer une session d'indexation
     //
-    // Le writer alloue 50MB de RAM pour le buffer d'indexation.
+    // Le writer alloue 200MB de RAM pour le buffer d'indexation (optimisé).
+    // Plus de RAM = moins de commits intermédiaires = meilleure performance
     // N'oublie pas d'appeler writer.commit() pour persister les changements!
     pub fn create_writer(&self) -> Result<IndexWriter> {
         let writer = self
             .index
-            .writer(50_000_000)
+            .writer(200_000_000) // 200MB pour optimiser les performances
             .context("Impossible de créer le writer")?;
         Ok(writer)
     }
@@ -386,5 +387,66 @@ mod tests {
         assert_eq!(results.len(), 0);
 
         let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    #[ignore] // Benchmark - run with --ignored
+    fn bench_search_100k_files() {
+        use std::time::Instant;
+
+        let temp_dir = std::env::temp_dir().join("xfinder_bench_search");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+
+        println!("✅ Creating index with 100k files...");
+        let index = SearchIndex::new(&temp_dir, 2, 20).unwrap();
+        let mut writer = index.create_writer().unwrap();
+
+        let start = Instant::now();
+
+        // Indexer 100k fichiers
+        for i in 0..100_000 {
+            let path = format!("C:\\test\\folder\\file_{}.txt", i);
+            let filename = format!("file_{}.txt", i);
+            index.add_file(&mut writer, &path, &filename).unwrap();
+        }
+
+        writer.commit().unwrap();
+        let index_time = start.elapsed();
+        println!("   Indexed 100k files in {:?} ({:.0} files/sec)",
+            index_time, 100_000.0 / index_time.as_secs_f64());
+
+        // Bench recherche simple
+        println!("✅ Benchmarking search performance...");
+        let queries = vec!["file", "txt", "100", "test", "folder", "999"];
+
+        for query in queries {
+            let start = Instant::now();
+            let results = index.search(query, 50, SearchOptions::default()).unwrap();
+            let search_time = start.elapsed();
+
+            println!("   Search '{}': {} results in {:?} ({:.2}ms)",
+                query, results.len(), search_time, search_time.as_secs_f64() * 1000.0);
+
+            // Vérifier que c'est < 100ms
+            assert!(search_time.as_millis() < 100,
+                "Search for '{}' took {:?}, expected < 100ms", query, search_time);
+        }
+
+        // Bench recherche fuzzy
+        println!("✅ Benchmarking fuzzy search...");
+        let fuzzy_options = SearchOptions {
+            fuzzy_search: true,
+            fuzzy_distance: 1,
+            ..Default::default()
+        };
+
+        let start = Instant::now();
+        let results = index.search("fle", 50, fuzzy_options).unwrap(); // Typo de "file"
+        let fuzzy_time = start.elapsed();
+        println!("   Fuzzy search 'fle': {} results in {:?} ({:.2}ms)",
+            results.len(), fuzzy_time, fuzzy_time.as_secs_f64() * 1000.0);
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        println!("✅ Search benchmark completed!");
     }
 }
