@@ -34,6 +34,21 @@ pub fn render_assist_me_ui(ctx: &egui::Context, app: &mut XFinderApp) {
 
         ui.separator();
 
+        // Affichage des messages d'erreur/info pour Assist Me
+        if let Some(ref error_msg) = app.assist_me_error {
+            ui.horizontal(|ui| {
+                ui.add_space(10.0);
+                if error_msg.starts_with("✅") {
+                    ui.colored_label(egui::Color32::from_rgb(40, 167, 69), error_msg);
+                } else if error_msg.starts_with("🚀") {
+                    ui.colored_label(egui::Color32::from_rgb(0, 123, 255), error_msg);
+                } else {
+                    ui.colored_label(egui::Color32::from_rgb(220, 53, 69), error_msg);
+                }
+            });
+            ui.add_space(10.0);
+        }
+
         // Affichage des résultats ou suggestions
         if app.assist_me_loading {
             // État de chargement

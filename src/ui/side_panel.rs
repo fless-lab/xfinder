@@ -2,7 +2,7 @@
 // Panneau latéral avec statut de l'index
 
 use eframe::egui;
-use crate::app::XFinderApp;
+use crate::app::{XFinderApp, AppMode};
 
 pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
     egui::SidePanel::left("side_panel")
@@ -11,10 +11,21 @@ pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
             // Rendre tout le contenu scrollable verticalement
             egui::ScrollArea::vertical().show(ui, |ui| {
             ui.add_space(10.0);
-            ui.heading("Statut de l'Index");
-            ui.add_space(10.0);
 
-            ui.separator();
+            // Router selon le mode
+            match app.current_mode {
+                AppMode::ClassicSearch => render_classic_sidebar(ui, app),
+                AppMode::AssistMe => render_assist_me_sidebar(ui, app),
+            }
+            });
+        });
+}
+
+fn render_classic_sidebar(ui: &mut egui::Ui, app: &mut XFinderApp) {
+    ui.heading("Statut de l'Index");
+    ui.add_space(10.0);
+
+    ui.separator();
 
             ui.label(format!(
                 "Etat: {}",
@@ -281,6 +292,130 @@ pub fn render_side_panel(ctx: &egui::Context, app: &mut XFinderApp) {
 
             // Padding en bas pour éviter que le contenu soit collé au bord
             ui.add_space(20.0);
-            }); // Fin du ScrollArea
+}
+
+fn render_assist_me_sidebar(ui: &mut egui::Ui, app: &mut XFinderApp) {
+    ui.heading("Assist Me 🤖");
+    ui.add_space(10.0);
+
+    ui.separator();
+
+    // Statut sémantique
+    ui.label(format!(
+        "Etat: {}",
+        if app.is_semantic_initialized() {
+            "Initialisé"
+        } else {
+            "Non initialisé"
+        }
+    ));
+
+    if app.is_semantic_initialized() {
+        ui.label(format!("Fichiers indexés: {}", app.semantic_stats.files_indexed));
+        ui.label(format!("Chunks créés: {}", app.semantic_stats.chunks_created));
+
+        if app.semantic_stats.errors > 0 {
+            ui.colored_label(
+                egui::Color32::from_rgb(220, 53, 69),
+                format!("Erreurs: {}", app.semantic_stats.errors)
+            );
+        }
+
+        // Progress bar si indexation en cours
+        if app.semantic_indexing_in_progress {
+            ui.add_space(5.0);
+            ui.label("Indexation en cours...");
+
+            if let Some(ref current_file) = app.semantic_stats.current_file {
+                ui.small(current_file).on_hover_text(current_file);
+            }
+
+            // Spinner animé
+            ui.add_space(5.0);
+            ui.horizontal(|ui| {
+                ui.spinner();
+                ui.label(format!("{} fichiers", app.semantic_stats.files_indexed));
+            });
+        }
+    }
+
+    ui.add_space(10.0);
+    ui.separator();
+    ui.add_space(10.0);
+
+    // Actions
+    ui.label("Actions:");
+
+    if !app.is_semantic_initialized() {
+        if ui.button("🚀 Initialiser Assist Me").clicked() {
+            app.init_semantic_indexing();
+        }
+        ui.small("Charge le modèle d'embeddings (all-MiniLM-L6-v2)");
+    } else {
+        ui.horizontal(|ui| {
+            if ui.button("📚 Indexer maintenant").clicked() {
+                app.start_semantic_indexing();
+            }
+
+            if app.semantic_indexing_in_progress {
+                ui.label("En cours...");
+            }
         });
+
+        ui.add_space(5.0);
+
+        // Auto-index toggle
+        ui.checkbox(&mut app.config.assist_me.auto_index_new_files, "Auto-indexer nouveaux fichiers")
+            .on_hover_text("Indexer automatiquement les nouveaux fichiers détectés par le watchdog");
+
+        if app.config.assist_me.auto_index_new_files && !app.watchdog_enabled {
+            ui.colored_label(
+                egui::Color32::from_rgb(255, 165, 0),
+                "⚠️ Watchdog désactivé - activer pour auto-index"
+            );
+        }
+    }
+
+    ui.add_space(10.0);
+    ui.separator();
+    ui.add_space(10.0);
+
+    // Watchdog partagé
+    ui.label("Surveillance en temps réel:");
+    ui.horizontal(|ui| {
+        if app.watchdog_enabled {
+            ui.label(format!("ACTIF ({} mises à jour)", app.watchdog_update_count));
+            if ui.button("Désactiver").clicked() {
+                app.disable_watchdog();
+            }
+        } else {
+            ui.label("INACTIF");
+            if ui.button("Activer").clicked() {
+                app.enable_watchdog();
+            }
+        }
+    });
+
+    if app.watchdog_enabled {
+        ui.label("Détection auto: ajout/modification/suppression");
+
+        if app.config.assist_me.auto_index_new_files {
+            ui.colored_label(
+                egui::Color32::from_rgb(40, 167, 69),
+                "✓ Auto-indexation sémantique activée"
+            );
+        }
+    }
+
+    ui.add_space(10.0);
+    ui.separator();
+    ui.add_space(10.0);
+
+    // Bouton paramètres
+    if ui.button("⚙️ Paramètres").clicked() {
+        app.show_settings_modal = true;
+    }
+
+    // Padding en bas
+    ui.add_space(20.0);
 }

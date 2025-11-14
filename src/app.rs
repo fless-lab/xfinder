@@ -161,7 +161,8 @@ pub struct XFinderApp {
     pub index_status: IndexStatus,
     pub indexing_in_progress: bool,
     pub indexing_paused: Arc<AtomicBool>,
-    pub error_message: Option<String>,
+    pub error_message: Option<String>,           // Erreurs mode Classic
+    pub assist_me_error: Option<String>,         // Erreurs mode Assist Me
     pub preview_file_path: Option<String>,
     pub max_files_to_index: usize,
     pub no_file_limit: bool,
@@ -204,6 +205,7 @@ pub struct XFinderApp {
     pub assist_me_query: String,           // Question en langage naturel
     pub assist_me_results: Vec<AssistMeSource>,  // Sources trouvées avec scores
     pub assist_me_loading: bool,           // Recherche sémantique en cours
+    search_results_rx: Option<Receiver<Vec<AssistMeSource>>>,  // Channel pour résultats
     // Semantic indexing (Assist Me backend)
     semantic_indexer: Option<Arc<Mutex<SemanticIndexer>>>,
     background_indexer: Option<BackgroundIndexer>,
@@ -267,6 +269,7 @@ impl Default for XFinderApp {
             indexing_in_progress: false,
             indexing_paused: Arc::new(AtomicBool::new(false)),
             error_message: None,
+            assist_me_error: None,
             preview_file_path: None,
             max_files_to_index,
             no_file_limit,
@@ -309,6 +312,7 @@ impl Default for XFinderApp {
             assist_me_query: String::new(),
             assist_me_results: Vec::new(),
             assist_me_loading: false,
+            search_results_rx: None,
             // Semantic indexing (lazy loaded si Assist Me activé)
             semantic_indexer: None,
             background_indexer: None,
@@ -403,39 +407,48 @@ impl XFinderApp {
                     Ok(bg_indexer) => {
                         self.semantic_indexer = Some(indexer_arc);
                         self.background_indexer = Some(bg_indexer);
-                        self.error_message = Some("✅ Assist Me initialisé (prêt à indexer)".to_string());
+                        self.assist_me_error = Some("✅ Assist Me initialisé (prêt à indexer)".to_string());
+                        println!("✅ Semantic indexing system initialized successfully");
                     }
                     Err(e) => {
-                        self.error_message = Some(format!("❌ Erreur BackgroundIndexer: {}", e));
+                        self.assist_me_error = Some(format!("❌ Erreur BackgroundIndexer: {}", e));
+                        eprintln!("❌ Failed to start BackgroundIndexer: {}", e);
                     }
                 }
             }
             Err(e) => {
-                self.error_message = Some(format!("❌ Erreur SemanticIndexer: {}. Vérifiez que Python + sentence-transformers + LEANN sont installés.", e));
+                self.assist_me_error = Some(format!("❌ Erreur SemanticIndexer: {}. Vérifiez que Python + sentence-transformers + LEANN sont installés.", e));
+                eprintln!("❌ Failed to create SemanticIndexer: {}", e);
             }
         }
     }
 
     /// Démarre l'indexation sémantique des fichiers configurés
     pub fn start_semantic_indexing(&mut self) {
+        println!("🚀 start_semantic_indexing() called");
+
         // Initialiser le système sémantique si pas encore fait
         if self.semantic_indexer.is_none() {
+            println!("⚙️  Semantic system not initialized, calling init_semantic_indexing()...");
             self.init_semantic_indexing();
         }
 
         // Vérifier que le système est bien initialisé
         if self.semantic_indexer.is_none() || self.background_indexer.is_none() {
-            self.error_message = Some("❌ Système sémantique non disponible".to_string());
+            self.assist_me_error = Some("❌ Système sémantique non disponible".to_string());
+            eprintln!("❌ Semantic system not available after init");
             return;
         }
 
         // Éviter de lancer plusieurs indexations simultanées
         if self.semantic_indexing_in_progress {
+            println!("⚠️  Indexation already in progress, skipping");
             return;
         }
 
         self.semantic_indexing_in_progress = true;
-        self.error_message = Some("🚀 Indexation sémantique démarrée...".to_string());
+        self.assist_me_error = Some("🚀 Indexation sémantique démarrée...".to_string());
+        println!("✅ Starting semantic indexing...");
 
         // Collecter les fichiers à indexer
         use crate::search::FileScanner;
@@ -452,13 +465,15 @@ impl XFinderApp {
 
         // Lancer dans un thread séparé pour ne pas bloquer l'UI
         std::thread::spawn(move || {
+            println!("📂 Scanning {} paths for semantic indexing...", scan_paths.len());
             let mut total_files = 0;
 
-            for path_str in &scan_paths {
+            for (idx, path_str) in scan_paths.iter().enumerate() {
                 let scan_path = PathBuf::from(path_str);
+                println!("📁 [{}/{}] Scanning: {}", idx + 1, scan_paths.len(), path_str);
 
                 if !scan_path.exists() {
-                    eprintln!("Chemin inexistant: {}", path_str);
+                    eprintln!("❌ Path does not exist: {}", path_str);
                     continue;
                 }
 
@@ -471,23 +486,32 @@ impl XFinderApp {
                     &excluded_dirs
                 ) {
                     Ok(files) => {
+                        println!("✅ Found {} files in {}", files.len(), path_str);
                         for file_entry in files {
                             // Enqueue le fichier pour indexation sémantique
                             if let Err(e) = bg_indexer.enqueue_file(file_entry.path.clone()) {
-                                eprintln!("Erreur enqueue: {}", e);
+                                eprintln!("❌ Failed to enqueue {}: {}", file_entry.path, e);
                             } else {
                                 total_files += 1;
+                                if total_files % 100 == 0 {
+                                    println!("📊 Enqueued {} files so far...", total_files);
+                                }
                             }
                         }
                     }
                     Err(e) => {
-                        eprintln!("Erreur scan {}: {}", path_str, e);
+                        eprintln!("❌ Failed to scan {}: {}", path_str, e);
                     }
                 }
             }
 
             println!("✅ {} fichiers envoyés pour indexation sémantique", total_files);
         });
+    }
+
+    /// Vérifie si le système sémantique est initialisé
+    pub fn is_semantic_initialized(&self) -> bool {
+        self.semantic_indexer.is_some()
     }
 
     /// Sauvegarde la configuration actuelle dans le fichier TOML
@@ -1038,7 +1062,7 @@ impl XFinderApp {
 
         // Vérifier que le système sémantique est initialisé
         if self.semantic_indexer.is_none() {
-            self.error_message = Some("❌ Système sémantique non initialisé. Passez en mode Assist Me d'abord.".to_string());
+            self.assist_me_error = Some("❌ Système sémantique non initialisé. Cliquez sur 'Démarrer l'indexation'.".to_string());
             return;
         }
 
@@ -1047,31 +1071,74 @@ impl XFinderApp {
 
         let query = self.assist_me_query.clone();
         let indexer = self.semantic_indexer.as_ref().unwrap().clone();
-        // TODO: Utiliser database pour récupérer les chemins de fichiers
-        // let database = self.database.clone();
+
+        // Créer un channel pour recevoir les résultats
+        let (tx, rx) = unbounded::<Vec<AssistMeSource>>();
+        self.search_results_rx = Some(rx);
 
         // Lancer la recherche dans un thread séparé
         std::thread::spawn(move || {
-            // TODO: Envoyer les résultats via un channel
-            // Pour l'instant, juste afficher dans la console
+            println!("🔍 Searching for: '{}'", query);
+
             match indexer.lock().unwrap().search(&query, 10) {
                 Ok(results) => {
-                    println!("🔍 Résultats sémantiques pour '{}': {} chunks trouvés", query, results.len());
+                    println!("✅ Found {} chunks", results.len());
+
+                    let mut sources = Vec::new();
 
                     for (chunk_id, distance) in &results {
                         let (file_id, chunk_index) = crate::semantic::SemanticIndexer::decode_chunk_id(*chunk_id);
-                        println!("  - Chunk #{} (file_id={}, chunk={}, distance={:.3})", chunk_id, file_id, chunk_index, distance);
 
-                        // TODO: Récupérer le chemin du fichier depuis la database
-                        // TODO: Récupérer le texte du chunk
-                        // TODO: Envoyer au channel pour update UI
+                        // Convertir distance en score (0-1, plus haut = meilleur)
+                        let score = 1.0 / (1.0 + distance);
+
+                        // TODO: Récupérer le vrai chemin du fichier depuis database
+                        let file_path = format!("file_{}.txt", file_id);
+                        let filename = format!("Document_{}", file_id);
+
+                        // TODO: Récupérer le vrai texte du chunk
+                        let excerpt = format!("Chunk #{} (score: {:.3})", chunk_index, score);
+
+                        sources.push(AssistMeSource {
+                            file_path,
+                            filename,
+                            excerpt,
+                            score,
+                            chunk_index,
+                        });
+                    }
+
+                    // Envoyer les résultats au thread UI
+                    if let Err(e) = tx.send(sources) {
+                        eprintln!("❌ Failed to send search results: {}", e);
                     }
                 }
                 Err(e) => {
-                    eprintln!("❌ Erreur recherche sémantique: {}", e);
+                    eprintln!("❌ Semantic search error: {}", e);
+                    // Envoyer un vec vide pour signaler la fin
+                    let _ = tx.send(Vec::new());
                 }
             }
         });
+    }
+
+    /// Traite les résultats de recherche sémantique
+    fn process_search_results(&mut self) {
+        if let Some(ref rx) = self.search_results_rx {
+            if let Ok(sources) = rx.try_recv() {
+                self.assist_me_results = sources;
+                self.assist_me_loading = false;
+                self.search_results_rx = None; // Fermer le channel
+
+                if self.assist_me_results.is_empty() {
+                    self.assist_me_error = Some("❌ Aucun résultat trouvé".to_string());
+                } else {
+                    self.assist_me_error = Some(format!("✅ {} sources trouvées", self.assist_me_results.len()));
+                }
+
+                println!("✅ Search results received: {} sources", self.assist_me_results.len());
+            }
+        }
     }
 
     /// Traite les statistiques d'indexation sémantique
@@ -1086,11 +1153,13 @@ impl XFinderApp {
                 // On considère terminé si le fichier courant est vide
                 if stats.current_file.is_none() {
                     self.semantic_indexing_in_progress = false;
-                    self.error_message = Some(format!(
+                    self.assist_me_error = Some(format!(
                         "✅ Indexation sémantique terminée: {} fichiers, {} chunks",
                         stats.files_indexed,
                         stats.chunks_created
                     ));
+                    println!("✅ Semantic indexing completed: {} files, {} chunks",
+                             stats.files_indexed, stats.chunks_created);
                 }
             }
         }
@@ -1134,6 +1203,9 @@ impl eframe::App for XFinderApp {
 
         // Traiter les statistiques d'indexation sémantique
         self.process_semantic_indexing_stats();
+
+        // Traiter les résultats de recherche sémantique
+        self.process_search_results();
 
         render_top_panel(ctx, self);
         render_side_panel(ctx, self);
