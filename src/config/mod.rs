@@ -74,6 +74,12 @@ pub struct SystemConfig {
 
     #[serde(default = "default_scheduler_minute")]
     pub scheduler_minute: u32,
+
+    #[serde(default = "default_true")]
+    pub tray_enabled: bool,
+
+    #[serde(default = "default_true")]
+    pub hotkey_enabled: bool,
 }
 
 // === Defaults ===
@@ -130,6 +136,10 @@ fn default_scheduler_minute() -> u32 {
     0
 }
 
+fn default_true() -> bool {
+    true
+}
+
 impl Default for ExclusionsConfig {
     fn default() -> Self {
         Self {
@@ -168,6 +178,8 @@ impl Default for SystemConfig {
             scheduler_enabled: false,
             scheduler_hour: default_scheduler_hour(),
             scheduler_minute: default_scheduler_minute(),
+            tray_enabled: true,
+            hotkey_enabled: true,
         }
     }
 }

@@ -177,6 +177,8 @@ pub struct XFinderApp {
     pub system_tray: Option<SystemTray>,
     pub scheduler: Option<Scheduler>,
     pub hotkey_manager: Option<crate::system::HotkeyManager>,
+    // Lazy initialization flag
+    lazy_initialized: bool,
 }
 
 #[derive(Default)]
@@ -197,18 +199,10 @@ impl Default for XFinderApp {
             .join(".xfinder_index");
 
         // Charger la configuration (crée defaults si absent)
+        // Note: Config est le seul élément chargé au démarrage (rapide ~1-5ms)
+        // Le reste (DB, Tray, Hotkey) sera chargé en lazy dans update()
         let config = AppConfig::load(AppConfig::default_path())
             .unwrap_or_else(|_| AppConfig::default());
-
-        // Initialiser la database SQLite
-        let db_path = dirs::home_dir()
-            .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
-            .join(".xfinder_index")
-            .join("xfinder.db");
-
-        let database = Database::new(&db_path)
-            .ok()
-            .map(Arc::new);
 
         // Utiliser les valeurs de la config
         let scan_paths = config.scan_paths.clone();
@@ -227,9 +221,9 @@ impl Default for XFinderApp {
             search_results: Vec::new(),
             raw_search_results: Vec::new(),
             search_index: None,
-            database,
+            database: None,  // ⚡ Lazy loaded
             file_watcher: None,
-            audio_player: AudioPlayer::new().ok(),
+            audio_player: None,  // ⚡ Lazy loaded
             config,
             index_dir,
             scan_paths,
@@ -274,9 +268,10 @@ impl Default for XFinderApp {
             date_filter_input: String::new(),
             progress_rx: None,
             // System integration
-            system_tray: SystemTray::new().ok(),
+            system_tray: None,  // ⚡ Lazy loaded
             scheduler: None,  // Sera initialisé après si activé dans la config
-            hotkey_manager: crate::system::HotkeyManager::new().ok(),
+            hotkey_manager: None,  // ⚡ Lazy loaded
+            lazy_initialized: false,
         }
     }
 }
@@ -294,6 +289,43 @@ impl XFinderApp {
                 self.index_status.is_ready = false;
             }
         }
+    }
+
+    /// Lazy initialization des ressources lourdes (DB, Tray, Hotkey, AudioPlayer)
+    /// Appelé au premier frame d'update() pour éviter de bloquer le démarrage
+    fn lazy_init(&mut self) {
+        if self.lazy_initialized {
+            return; // Déjà initialisé
+        }
+
+        // 1. Initialiser la database SQLite
+        if self.database.is_none() {
+            let db_path = dirs::home_dir()
+                .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
+                .join(".xfinder_index")
+                .join("xfinder.db");
+
+            self.database = Database::new(&db_path)
+                .ok()
+                .map(Arc::new);
+        }
+
+        // 2. Initialiser l'audio player (si nécessaire)
+        if self.audio_player.is_none() {
+            self.audio_player = AudioPlayer::new().ok();
+        }
+
+        // 3. Initialiser le system tray (si activé dans config)
+        if self.system_tray.is_none() && self.config.system.tray_enabled {
+            self.system_tray = SystemTray::new().ok();
+        }
+
+        // 4. Initialiser le hotkey manager (si activé dans config)
+        if self.hotkey_manager.is_none() && self.config.system.hotkey_enabled {
+            self.hotkey_manager = crate::system::HotkeyManager::new().ok();
+        }
+
+        self.lazy_initialized = true;
     }
 
     /// Sauvegarde la configuration actuelle dans le fichier TOML
@@ -839,6 +871,10 @@ impl XFinderApp {
 
 impl eframe::App for XFinderApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        // Lazy initialization au premier frame (DB, Tray, Hotkey)
+        // L'UI est déjà affichée, donc pas de freeze au démarrage
+        self.lazy_init();
+
         // Gérer la fermeture de fenêtre (hide to tray)
         if ctx.input(|i| i.viewport().close_requested()) {
             if self.config.ui.minimize_to_tray && self.system_tray.is_some() {
