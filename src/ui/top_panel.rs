@@ -27,8 +27,7 @@ pub fn render_top_panel(ctx: &egui::Context, app: &mut XFinderApp) {
                 "🤖 Assist Me"
             ).clicked() {
                 app.current_mode = AppMode::AssistMe;
-                // Initialiser le système sémantique à la demande
-                app.init_semantic_indexing();
+                // L'init se fait via le bouton dans la sidebar
             }
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {

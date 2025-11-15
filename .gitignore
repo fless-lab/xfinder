@@ -44,3 +44,8 @@ models/
 tmp/
 temp/
 /.claude
+/.venv
+nul
+
+# Windows helper scripts
+run.bat

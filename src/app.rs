@@ -382,43 +382,65 @@ impl XFinderApp {
     /// Initialise le système d'indexation sémantique (Assist Me)
     /// Appelé à la demande quand l'utilisateur active le mode Assist Me
     pub fn init_semantic_indexing(&mut self) {
+        println!("🔧 init_semantic_indexing() called");
+
         // Si déjà initialisé, ne rien faire
         if self.semantic_indexer.is_some() {
+            println!("ℹ️  Semantic system already initialized, skipping");
             return;
         }
 
         // Vérifier si Assist Me est activé
         if !self.config.assist_me.enabled {
-            return;
+            println!("⚠️  Assist Me is DISABLED in config (assist_me.enabled = false)");
+            println!("💡 Enabling it automatically for this session...");
+            self.config.assist_me.enabled = true;
+            // Ne pas return, on continue l'init
         }
+
+        println!("📍 LEANN index path: {}", self.config.assist_me.leann_index_path);
+        println!("📍 Model: all-MiniLM-L6-v2");
+        println!("🔄 Creating SemanticIndexer...");
 
         // Chemin de l'index LEANN
         let leann_index_path = &self.config.assist_me.leann_index_path;
         let model_name = "all-MiniLM-L6-v2"; // TODO: from config
 
         // Créer le SemanticIndexer
+        println!("🔄 Calling SemanticIndexer::new()...");
         match SemanticIndexer::new(leann_index_path, model_name) {
             Ok(indexer) => {
+                println!("✅ SemanticIndexer created successfully!");
                 let indexer_arc = Arc::new(Mutex::new(indexer));
 
                 // Démarrer le BackgroundIndexer
                 let batch_size = self.config.assist_me.batch_size;
+                println!("🔄 Starting BackgroundIndexer (batch_size={})...", batch_size);
                 match BackgroundIndexer::start(Arc::clone(&indexer_arc), batch_size) {
                     Ok(bg_indexer) => {
+                        println!("✅ BackgroundIndexer started successfully!");
                         self.semantic_indexer = Some(indexer_arc);
                         self.background_indexer = Some(bg_indexer);
                         self.assist_me_error = Some("✅ Assist Me initialisé (prêt à indexer)".to_string());
-                        println!("✅ Semantic indexing system initialized successfully");
+                        println!("✅ ✅ ✅ Semantic indexing system initialized successfully!");
                     }
                     Err(e) => {
                         self.assist_me_error = Some(format!("❌ Erreur BackgroundIndexer: {}", e));
                         eprintln!("❌ Failed to start BackgroundIndexer: {}", e);
+                        eprintln!("   Details: {:?}", e);
                     }
                 }
             }
             Err(e) => {
                 self.assist_me_error = Some(format!("❌ Erreur SemanticIndexer: {}. Vérifiez que Python + sentence-transformers + LEANN sont installés.", e));
                 eprintln!("❌ Failed to create SemanticIndexer: {}", e);
+                eprintln!("   Details: {:?}", e);
+                eprintln!("");
+                eprintln!("💡 PRÉREQUIS:");
+                eprintln!("   1. Python 3.8+ installé");
+                eprintln!("   2. pip install sentence-transformers");
+                eprintln!("   3. pip install leann");
+                eprintln!("");
             }
         }
     }
