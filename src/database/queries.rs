@@ -601,4 +601,101 @@ mod tests {
         let count = count_files(&conn).unwrap();
         assert_eq!(count, 100);
     }
+
+    #[test]
+    fn test_semantic_file_mapping() {
+        let conn = create_test_db();
+        let file_id = 12345_i64;
+        let path = "/home/user/documents/test.txt";
+
+        // Test insertion
+        upsert_semantic_file_mapping(&conn, file_id, path).unwrap();
+
+        // Test retrieval
+        let retrieved_path = get_path_by_file_id(&conn, file_id).unwrap();
+        assert!(retrieved_path.is_some());
+        assert_eq!(retrieved_path.unwrap(), path);
+
+        // Test non-existent file_id
+        let non_existent = get_path_by_file_id(&conn, 99999).unwrap();
+        assert!(non_existent.is_none());
+    }
+
+    #[test]
+    fn test_semantic_chunks() {
+        let conn = create_test_db();
+        let now = chrono::Utc::now().timestamp();
+
+        let file_id = 123_i64;
+        let chunk_id = file_id * 1_000_000 + 5; // chunk index 5
+
+        // Setup file mapping first
+        upsert_semantic_file_mapping(&conn, file_id, "/test/file.txt").unwrap();
+
+        // Test chunk insertion
+        let chunk = SemanticChunkRecord {
+            chunk_id,
+            file_id,
+            chunk_index: 5,
+            text: "This is a test chunk containing semantic search content.".to_string(),
+            start_pos: 0,
+            end_pos: 57,
+            indexed_at: now,
+        };
+
+        insert_semantic_chunk(&conn, &chunk).unwrap();
+
+        // Test chunk retrieval
+        let retrieved = get_chunk_by_id(&conn, chunk_id).unwrap();
+        assert!(retrieved.is_some());
+
+        let retrieved_chunk = retrieved.unwrap();
+        assert_eq!(retrieved_chunk.chunk_id, chunk_id);
+        assert_eq!(retrieved_chunk.file_id, file_id);
+        assert_eq!(retrieved_chunk.chunk_index, 5);
+        assert_eq!(retrieved_chunk.text, "This is a test chunk containing semantic search content.");
+
+        // Test non-existent chunk
+        let non_existent = get_chunk_by_id(&conn, 99999).unwrap();
+        assert!(non_existent.is_none());
+    }
+
+    #[test]
+    fn test_semantic_chunk_update() {
+        let conn = create_test_db();
+        let now = chrono::Utc::now().timestamp();
+
+        let file_id = 456_i64;
+        let chunk_id = file_id * 1_000_000 + 1;
+
+        upsert_semantic_file_mapping(&conn, file_id, "/test/doc.txt").unwrap();
+
+        // Insert initial chunk
+        let chunk1 = SemanticChunkRecord {
+            chunk_id,
+            file_id,
+            chunk_index: 1,
+            text: "Original text".to_string(),
+            start_pos: 0,
+            end_pos: 13,
+            indexed_at: now,
+        };
+        insert_semantic_chunk(&conn, &chunk1).unwrap();
+
+        // Update chunk with new text
+        let chunk2 = SemanticChunkRecord {
+            chunk_id,
+            file_id,
+            chunk_index: 1,
+            text: "Updated text content".to_string(),
+            start_pos: 0,
+            end_pos: 20,
+            indexed_at: now + 100,
+        };
+        insert_semantic_chunk(&conn, &chunk2).unwrap();
+
+        // Verify update worked
+        let retrieved = get_chunk_by_id(&conn, chunk_id).unwrap().unwrap();
+        assert_eq!(retrieved.text, "Updated text content");
+    }
 }
