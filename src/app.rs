@@ -409,8 +409,15 @@ impl XFinderApp {
         // Créer le SemanticIndexer
         println!("🔄 Calling SemanticIndexer::new()...");
         match SemanticIndexer::new(leann_index_path, model_name) {
-            Ok(indexer) => {
+            Ok(mut indexer) => {
                 println!("✅ SemanticIndexer created successfully!");
+
+                // Attacher la database au semantic indexer
+                if let Some(ref db) = self.database {
+                    println!("🔗 Attaching database to SemanticIndexer...");
+                    indexer.set_database(Arc::clone(db));
+                }
+
                 let indexer_arc = Arc::new(Mutex::new(indexer));
 
                 // Démarrer le BackgroundIndexer
@@ -1093,6 +1100,7 @@ impl XFinderApp {
 
         let query = self.assist_me_query.clone();
         let indexer = self.semantic_indexer.as_ref().unwrap().clone();
+        let database = self.database.clone();
 
         // Créer un channel pour recevoir les résultats
         let (tx, rx) = unbounded::<Vec<AssistMeSource>>();
@@ -1114,12 +1122,42 @@ impl XFinderApp {
                         // Convertir distance en score (0-1, plus haut = meilleur)
                         let score = 1.0 / (1.0 + distance);
 
-                        // TODO: Récupérer le vrai chemin du fichier depuis database
-                        let file_path = format!("file_{}.txt", file_id);
-                        let filename = format!("Document_{}", file_id);
+                        // Récupérer le vrai chemin du fichier depuis database
+                        let (file_path, filename) = match database.as_ref().and_then(|db| {
+                            db.with_conn(|conn| crate::database::queries::get_path_by_file_id(conn, file_id)).ok().flatten()
+                        }) {
+                            Some(path) => {
+                                let filename = std::path::Path::new(&path)
+                                    .file_name()
+                                    .and_then(|n| n.to_str())
+                                    .unwrap_or("Unknown")
+                                    .to_string();
+                                (path, filename)
+                            }
+                            None => {
+                                // Fallback si le mapping n'existe pas ou pas de DB
+                                (format!("file_{}.txt", file_id), format!("Document_{}", file_id))
+                            }
+                        };
 
-                        // TODO: Récupérer le vrai texte du chunk
-                        let excerpt = format!("Chunk #{} (score: {:.3})", chunk_index, score);
+                        // Récupérer le vrai texte du chunk depuis database
+                        let excerpt = match database.as_ref().and_then(|db| {
+                            db.with_conn(|conn| crate::database::queries::get_chunk_by_id(conn, *chunk_id)).ok().flatten()
+                        }) {
+                            Some(chunk) => {
+                                // Limiter la longueur de l'excerpt à 200 caractères
+                                let text = &chunk.text;
+                                if text.len() > 200 {
+                                    format!("{}...", &text[..200])
+                                } else {
+                                    text.clone()
+                                }
+                            }
+                            None => {
+                                // Fallback si le chunk n'existe pas dans la DB ou pas de DB
+                                format!("Chunk #{} (score: {:.3})", chunk_index, score)
+                            }
+                        };
 
                         sources.push(AssistMeSource {
                             file_path,

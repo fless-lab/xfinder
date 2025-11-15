@@ -1,0 +1,9 @@
+# PyTorch CPU-only (pas besoin de GPU)
+--index-url https://download.pytorch.org/whl/cpu
+torch>=2.0.0
+
+# Sentence Transformers pour les embeddings
+sentence-transformers>=2.2.0
+
+# LEANN pour l'index vectoriel
+leann>=0.3.0

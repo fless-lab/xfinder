@@ -6,6 +6,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use super::{ContentExtractor, Chunker, ChunkConfig, EmbeddingGenerator, LeannIndex};
+use crate::database::{Database, queries};
 
 /// Structure pour stocker un chunk indexé
 #[derive(Debug, Clone)]
@@ -39,6 +40,9 @@ pub struct SemanticIndexer {
 
     /// Chemin de l'index LEANN
     index_path: String,
+
+    /// Database pour sauvegarder les chunks et mappings (optionnel)
+    database: Option<Arc<Database>>,
 }
 
 impl SemanticIndexer {
@@ -67,7 +71,13 @@ impl SemanticIndexer {
             leann_index: Arc::new(Mutex::new(leann_index)),
             chunker: Chunker::new(),
             index_path: index_path_str,
+            database: None,
         })
+    }
+
+    /// Attache une database pour sauvegarder les chunks
+    pub fn set_database(&mut self, database: Arc<Database>) {
+        self.database = Some(database);
     }
 
     /// Crée un indexeur avec config de chunking personnalisée
@@ -133,7 +143,15 @@ impl SemanticIndexer {
                 .context("Failed to generate embeddings")?
         };
 
-        // 6. Ajouter chaque chunk à LEANN
+        // 6. Sauvegarder le mapping file_id -> path dans la DB (si disponible)
+        if let Some(ref db) = self.database {
+            let path_str = file_path.to_string_lossy().to_string();
+            db.with_conn(|conn| {
+                queries::upsert_semantic_file_mapping(conn, file_id, &path_str)
+            }).ok(); // Ignorer les erreurs de DB pour ne pas bloquer l'indexation
+        }
+
+        // 7. Ajouter chaque chunk à LEANN et sauvegarder dans la DB
         let leann = self.leann_index.lock().unwrap();
 
         for (chunk, embedding) in chunks.iter().zip(embeddings.iter()) {
@@ -142,8 +160,26 @@ impl SemanticIndexer {
             // Exemple: file_id=123, chunk_index=5 → chunk_id=123000005
             let chunk_id = file_id * 1_000_000 + chunk.chunk_index as i64;
 
+            // Ajouter à LEANN
             leann.add_embedding(chunk_id, embedding)
                 .with_context(|| format!("Failed to add chunk {} to LEANN", chunk_id))?;
+
+            // Sauvegarder le chunk dans la DB (si disponible)
+            if let Some(ref db) = self.database {
+                let chunk_record = queries::SemanticChunkRecord {
+                    chunk_id,
+                    file_id,
+                    chunk_index: chunk.chunk_index,
+                    text: chunk.text.clone(),
+                    start_pos: chunk.start_pos,
+                    end_pos: chunk.end_pos,
+                    indexed_at: chrono::Utc::now().timestamp(),
+                };
+
+                db.with_conn(|conn| {
+                    queries::insert_semantic_chunk(conn, &chunk_record)
+                }).ok(); // Ignorer les erreurs de DB pour ne pas bloquer l'indexation
+            }
         }
 
         Ok(chunks.len())

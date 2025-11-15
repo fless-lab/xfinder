@@ -69,10 +69,11 @@ impl ContentExtractor {
 
     /// Extrait le texte d'un fichier PDF
     fn extract_pdf<P: AsRef<Path>>(path: P) -> Result<String> {
+        use pdf_extract as pdf;
         let path = path.as_ref();
 
         // Utiliser pdf-extract pour extraire le texte
-        let content = pdf_extract::extract_text(path)
+        let content = pdf::extract_text(path)
             .with_context(|| format!("Failed to extract PDF: {}", path.display()))?;
 
         if content.trim().is_empty() {
@@ -85,33 +86,19 @@ impl ContentExtractor {
 
     /// Extrait le texte d'un fichier DOCX
     fn extract_docx<P: AsRef<Path>>(path: P) -> Result<String> {
+        use dotext::{Docx, MsDoc};
+        use std::io::Read;
+
         let path = path.as_ref();
 
-        // Lire le fichier DOCX en bytes
-        let bytes = fs::read(path)
-            .with_context(|| format!("Failed to read DOCX file: {}", path.display()))?;
+        // Ouvrir le fichier DOCX avec dotext
+        let mut docx_file = Docx::open(path)
+            .with_context(|| format!("Failed to open DOCX file: {}", path.display()))?;
 
-        // Parser le fichier DOCX
-        let docx = docx_rs::read_docx(&bytes)
-            .with_context(|| format!("Failed to parse DOCX: {}", path.display()))?;
-
-        // Extraire le texte de tous les paragraphes
+        // Lire le contenu texte
         let mut text = String::new();
-
-        for child in &docx.document.children {
-            if let docx_rs::DocumentChild::Paragraph(para) = child {
-                for para_child in &para.children {
-                    if let docx_rs::ParagraphChild::Run(run) = para_child {
-                        for run_child in &run.children {
-                            if let docx_rs::RunChild::Text(text_node) = run_child {
-                                text.push_str(&text_node.text);
-                            }
-                        }
-                    }
-                }
-                text.push('\n'); // Séparer les paragraphes
-            }
-        }
+        docx_file.read_to_string(&mut text)
+            .with_context(|| format!("Failed to read DOCX content: {}", path.display()))?;
 
         if text.trim().is_empty() {
             Ok(format!("[DOCX vide: {}]", path.file_name().unwrap_or_default().to_string_lossy()))

@@ -426,6 +426,127 @@ pub fn count_duplicates(conn: &Connection) -> Result<(usize, u64)> {
     Ok((total_files, total_size))
 }
 
+// ==================== Semantic File Mapping Operations ====================
+
+/// Enregistre ou met à jour le mapping file_id -> path pour la recherche sémantique
+pub fn upsert_semantic_file_mapping(conn: &Connection, file_id: i64, path: &str) -> Result<()> {
+    let now = chrono::Utc::now().timestamp();
+    conn.execute(
+        "INSERT INTO semantic_file_mapping (file_id, path, indexed_at)
+         VALUES (?1, ?2, ?3)
+         ON CONFLICT(file_id) DO UPDATE SET
+            path = excluded.path,
+            indexed_at = excluded.indexed_at",
+        params![file_id, path, now],
+    )?;
+    Ok(())
+}
+
+/// Récupère le chemin d'un fichier à partir de son file_id
+pub fn get_path_by_file_id(conn: &Connection, file_id: i64) -> Result<Option<String>> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT path FROM semantic_file_mapping WHERE file_id = ?1"
+    )?;
+    let mut rows = stmt.query(params![file_id])?;
+
+    if let Some(row) = rows.next()? {
+        Ok(Some(row.get(0)?))
+    } else {
+        Ok(None)
+    }
+}
+
+/// Supprime le mapping d'un fichier
+pub fn delete_semantic_file_mapping(conn: &Connection, file_id: i64) -> Result<()> {
+    conn.execute("DELETE FROM semantic_file_mapping WHERE file_id = ?1", params![file_id])?;
+    Ok(())
+}
+
+// ==================== Semantic Chunks Operations ====================
+
+#[derive(Debug, Clone)]
+pub struct SemanticChunkRecord {
+    pub chunk_id: i64,
+    pub file_id: i64,
+    pub chunk_index: usize,
+    pub text: String,
+    pub start_pos: usize,
+    pub end_pos: usize,
+    pub indexed_at: i64,
+}
+
+/// Insère un chunk sémantique
+pub fn insert_semantic_chunk(conn: &Connection, chunk: &SemanticChunkRecord) -> Result<()> {
+    conn.execute(
+        "INSERT INTO semantic_chunks (chunk_id, file_id, chunk_index, text, start_pos, end_pos, indexed_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+         ON CONFLICT(chunk_id) DO UPDATE SET
+            text = excluded.text,
+            indexed_at = excluded.indexed_at",
+        params![
+            chunk.chunk_id,
+            chunk.file_id,
+            chunk.chunk_index as i64,
+            chunk.text,
+            chunk.start_pos as i64,
+            chunk.end_pos as i64,
+            chunk.indexed_at,
+        ],
+    )?;
+    Ok(())
+}
+
+/// Récupère un chunk par son ID
+pub fn get_chunk_by_id(conn: &Connection, chunk_id: i64) -> Result<Option<SemanticChunkRecord>> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT chunk_id, file_id, chunk_index, text, start_pos, end_pos, indexed_at
+         FROM semantic_chunks WHERE chunk_id = ?1"
+    )?;
+    let mut rows = stmt.query(params![chunk_id])?;
+
+    if let Some(row) = rows.next()? {
+        Ok(Some(SemanticChunkRecord {
+            chunk_id: row.get(0)?,
+            file_id: row.get(1)?,
+            chunk_index: row.get::<_, i64>(2)? as usize,
+            text: row.get(3)?,
+            start_pos: row.get::<_, i64>(4)? as usize,
+            end_pos: row.get::<_, i64>(5)? as usize,
+            indexed_at: row.get(6)?,
+        }))
+    } else {
+        Ok(None)
+    }
+}
+
+/// Récupère tous les chunks d'un fichier
+pub fn get_chunks_by_file_id(conn: &Connection, file_id: i64) -> Result<Vec<SemanticChunkRecord>> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT chunk_id, file_id, chunk_index, text, start_pos, end_pos, indexed_at
+         FROM semantic_chunks WHERE file_id = ?1 ORDER BY chunk_index"
+    )?;
+
+    let rows = stmt.query_map(params![file_id], |row| {
+        Ok(SemanticChunkRecord {
+            chunk_id: row.get(0)?,
+            file_id: row.get(1)?,
+            chunk_index: row.get::<_, i64>(2)? as usize,
+            text: row.get(3)?,
+            start_pos: row.get::<_, i64>(4)? as usize,
+            end_pos: row.get::<_, i64>(5)? as usize,
+            indexed_at: row.get(6)?,
+        })
+    })?;
+
+    rows.collect()
+}
+
+/// Supprime tous les chunks d'un fichier
+pub fn delete_chunks_by_file_id(conn: &Connection, file_id: i64) -> Result<()> {
+    conn.execute("DELETE FROM semantic_chunks WHERE file_id = ?1", params![file_id])?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -75,6 +75,32 @@ CREATE TABLE IF NOT EXISTS error_log (
 CREATE INDEX IF NOT EXISTS idx_error_log_timestamp ON error_log(timestamp);
 CREATE INDEX IF NOT EXISTS idx_error_log_type ON error_log(error_type);
 
+-- ==================== Semantic File Mapping Table ====================
+-- Mapping entre file_id (hash i64) et path pour la recherche sémantique
+CREATE TABLE IF NOT EXISTS semantic_file_mapping (
+    file_id INTEGER PRIMARY KEY,
+    path TEXT NOT NULL UNIQUE,
+    indexed_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_semantic_file_mapping_path ON semantic_file_mapping(path);
+
+-- ==================== Semantic Chunks Table ====================
+-- Stockage des chunks de texte pour la recherche sémantique
+CREATE TABLE IF NOT EXISTS semantic_chunks (
+    chunk_id INTEGER PRIMARY KEY,
+    file_id INTEGER NOT NULL,
+    chunk_index INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    start_pos INTEGER NOT NULL,
+    end_pos INTEGER NOT NULL,
+    indexed_at INTEGER NOT NULL,
+    FOREIGN KEY (file_id) REFERENCES semantic_file_mapping(file_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_semantic_chunks_file_id ON semantic_chunks(file_id);
+CREATE INDEX IF NOT EXISTS idx_semantic_chunks_chunk_id ON semantic_chunks(chunk_id);
+
 -- ==================== Stats View ====================
 -- Vue pour statistiques rapides
 CREATE VIEW IF NOT EXISTS files_stats AS
